@@ -30,6 +30,13 @@
           </div>
           <div class="flex gap-2 flex-shrink-0">
             <a-button
+              v-if="canEdit"
+              size="large"
+              @click="$router.push(`/uploads/${detail.post.id}/edit`)"
+            >
+              <EditOutlined /> 수정
+            </a-button>
+            <a-button
               v-if="detail.post.status === 'pending'"
               type="primary"
               :loading="running"
@@ -165,6 +172,7 @@ import 'dayjs/locale/ko'
 import {
   LeftOutlined, PlayCircleOutlined, RedoOutlined, SyncOutlined, LinkOutlined,
   FileSearchOutlined, BookOutlined, ArrowRightOutlined, ClockCircleOutlined,
+  EditOutlined,
 } from '@ant-design/icons-vue'
 import { useIngestStore } from '@/stores/ingest'
 import { ingestApi } from '@/api/ingest'
@@ -183,6 +191,10 @@ const polling = ref(false)
 const pollTimer = ref<number | null>(null)
 
 const detail = computed(() => store.currentDetail)
+const canEdit = computed(() => {
+  const s = detail.value?.post.status
+  return s === 'pending' || s === 'done' || s === 'failed'
+})
 const latestJob = computed(() => {
   const jobs = detail.value?.jobs
   return jobs && jobs.length ? jobs[jobs.length - 1] : undefined

@@ -13,6 +13,7 @@ const router = createRouter({
     { path: '/ask', name: 'Ask', component: () => import('@/pages/Chat/Session.vue') },
     { path: '/uploads', name: 'Uploads', component: () => import('@/pages/IngestBoard/List.vue') },
     { path: '/upload', name: 'UploadNew', component: () => import('@/pages/IngestBoard/Editor.vue') },
+    { path: '/uploads/:id/edit', name: 'UploadEdit', component: () => import('@/pages/IngestBoard/Editor.vue') },
     { path: '/uploads/:id', name: 'UploadDetail', component: () => import('@/pages/IngestBoard/Detail.vue') },
     { path: '/quality', name: 'Quality', component: () => import('@/pages/LintDashboard/Index.vue') },
     { path: '/rules', name: 'Rules', component: () => import('@/pages/SchemaAdmin/Index.vue') },

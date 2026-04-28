@@ -6,8 +6,12 @@
           <a-button type="text" size="small" @click="$router.back()" class="-ml-2">
             <LeftOutlined /> 뒤로
           </a-button>
-          <h2 class="text-2xl font-bold tracking-tight mt-1">자료 올리기</h2>
-          <p class="text-gray-500 text-sm mt-1">올린 자료를 AI가 분석해 지식베이스에 통합합니다</p>
+          <h2 class="text-2xl font-bold tracking-tight mt-1">{{ isEdit ? '자료 수정하기' : '자료 올리기' }}</h2>
+          <p class="text-gray-500 text-sm mt-1">
+            <span v-if="isEdit && wasDone">이미 정리된 자료를 수정합니다. 다시 정리하면 지식베이스가 갱신됩니다.</span>
+            <span v-else-if="isEdit">자료를 수정합니다</span>
+            <span v-else>올린 자료를 AI가 분석해 지식베이스에 통합합니다</span>
+          </p>
         </div>
         <div class="flex items-center gap-2 text-xs text-gray-400">
           <span class="kbd">Ctrl</span><span>+</span><span class="kbd">Enter</span>
@@ -17,20 +21,41 @@
 
       <!-- 안내 배너 -->
       <a-alert
+        v-if="!isEdit"
         type="info"
         show-icon
         class="mb-4"
-        message="이렇게 쓰면 좋아요"
-        description="제목은 자료의 핵심을 한 줄로, 본문은 평소 메모하듯이 자유롭게. AI가 알아서 정리·분류해 지식베이스의 적절한 페이지에 통합합니다."
+        message="자유롭게 작성하세요"
+        description="제목은 비워두면 AI가 본문을 보고 만들어 드려요. 본문은 평소 메모하듯이 적으면, AI가 알아서 정리·분류해 지식베이스의 적절한 페이지에 통합합니다."
+      />
+      <a-alert
+        v-else-if="wasDone"
+        type="warning"
+        show-icon
+        class="mb-4"
+        message="이 자료는 이미 지식베이스에 반영되었어요"
+        description="수정만 저장하면 원본 자료만 바뀝니다. '다시 정리하기'로 저장하면 AI가 수정된 내용으로 지식베이스를 갱신합니다 (이전 정리 결과를 덮어씁니다)."
+      />
+      <a-alert
+        v-else
+        type="info"
+        show-icon
+        class="mb-4"
+        message="아직 정리가 시작되지 않았어요"
+        description="자유롭게 수정 후 저장하세요. 다음 정리 작업부터 수정된 내용이 반영됩니다."
       />
 
       <a-form layout="vertical" :model="form" @finish="handleSubmit" @keydown.ctrl.enter="handleSubmit">
         <a-card :bordered="false" class="mb-4">
-          <a-form-item label="제목" name="title" :rules="[{ required: true, message: '제목을 입력하세요' }]">
+          <a-form-item>
+            <template #label>
+              <span>제목</span>
+              <span class="text-xs text-gray-400 font-normal ml-2">선택 — 비워두면 AI가 본문에서 자동으로 만들어요</span>
+            </template>
             <a-input
               v-model:value="form.title"
               size="large"
-              placeholder="예: 트랜스포머 아키텍처 정리, 김연아 선수 프로필..."
+              placeholder="비워두면 본문에서 자동 추출 — 예: 트랜스포머 아키텍처, 김연아 선수 프로필..."
               :maxlength="500"
               show-count
             />
@@ -124,7 +149,7 @@
           </div>
         </a-card>
 
-        <a-card :bordered="false" class="mb-4" title="이미지/파일 첨부">
+        <a-card v-if="!isEdit" :bordered="false" class="mb-4" title="이미지/파일 첨부">
           <template #extra>
             <span class="text-xs text-gray-400">스크린샷·PDF·텍스트 (파일당 50MB)</span>
           </template>
@@ -170,9 +195,23 @@
           </div>
           <div class="flex gap-3">
             <a-button @click="$router.back()" size="large">취소</a-button>
-            <a-button type="primary" html-type="submit" :loading="submitting" size="large">
+            <!-- 신규 -->
+            <a-button v-if="!isEdit" type="primary" html-type="submit" :loading="submitting" size="large">
               <SaveOutlined /> {{ form.priority === 'urgent' ? '저장하고 바로 시작' : '저장' }}
             </a-button>
+            <!-- 편집(아직 미정리) -->
+            <a-button v-else-if="!wasDone" type="primary" html-type="submit" :loading="submitting" size="large">
+              <SaveOutlined /> 저장
+            </a-button>
+            <!-- 편집(완료) — 두 버튼 -->
+            <template v-else>
+              <a-button :loading="submitting && !rerunIntent" size="large" @click="onSaveOnly">
+                <SaveOutlined /> 원본만 수정
+              </a-button>
+              <a-button type="primary" :loading="submitting && rerunIntent" size="large" @click="onSaveAndRerun">
+                <SyncOutlined /> 저장하고 다시 정리
+              </a-button>
+            </template>
           </div>
         </div>
       </a-form>
@@ -183,10 +222,11 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import {
   LeftOutlined, EditOutlined, EyeOutlined, LayoutOutlined,
-  InboxOutlined, LinkOutlined, UserOutlined, SaveOutlined, FileTextOutlined,
+  InboxOutlined, LinkOutlined, UserOutlined, SaveOutlined,
+  FileTextOutlined, SyncOutlined,
 } from '@ant-design/icons-vue'
 import { ingestApi } from '@/api/ingest'
 import AppLayout from '@/components/AppLayout.vue'
@@ -195,8 +235,13 @@ import MarkdownRender from '@/components/MarkdownRender.vue'
 const router = useRouter()
 const route = useRoute()
 const submitting = ref(false)
+const rerunIntent = ref(false)
 const fileList = ref<any[]>([])
 const editMode = ref<'edit' | 'preview' | 'split'>('split')
+
+const isEdit = computed(() => !!route.params.id)
+const editingId = computed(() => Number(route.params.id))
+const wasDone = ref(false)
 
 const form = reactive({
   title: '',
@@ -214,7 +259,36 @@ const categoryOptions = computed(() => [
   { value: 'comparisons', label: 'comparisons (비교)' },
 ])
 
+async function loadForEdit() {
+  try {
+    const res = await ingestApi.get(editingId.value)
+    const post = res.data.post
+    form.title = post.title || ''
+    form.body_md = post.body_md || ''
+    form.type = post.type || 'new'
+    form.priority = post.priority || 'normal'
+    form.category = post.category || ''
+    form.source_url = post.source_url || ''
+    form.source_author = post.source_author || ''
+    wasDone.value = post.status === 'done'
+
+    // 처리 중 잠금
+    if (['ocr_running', 'ingest_running'].includes(post.status)) {
+      message.warning('처리 중인 자료는 수정할 수 없습니다')
+      router.replace(`/uploads/${editingId.value}`)
+    }
+  } catch {
+    message.error('자료를 불러올 수 없습니다')
+    router.replace('/uploads')
+  }
+}
+
 onMounted(() => {
+  if (isEdit.value) {
+    loadForEdit()
+    return
+  }
+  // 신규 생성 시 쿼리 파라미터로 prefill
   if (route.query.title) form.title = route.query.title as string
   if (route.query.type) form.type = route.query.type as string
   if (route.query.category) form.category = route.query.category as string
@@ -223,11 +297,31 @@ onMounted(() => {
   }
 })
 
-async function handleSubmit() {
-  if (!form.title.trim()) {
-    message.warning('제목을 입력해주세요')
+function onSaveOnly() {
+  rerunIntent.value = false
+  handleSubmit()
+}
+
+async function onSaveAndRerun() {
+  rerunIntent.value = true
+  const ok = await new Promise<boolean>((resolve) => {
+    Modal.confirm({
+      title: '다시 정리하시겠어요?',
+      content: 'AI가 수정된 내용으로 지식베이스를 다시 작성합니다. 이전 정리 결과는 새 내용으로 덮어씌워집니다.',
+      okText: '다시 정리',
+      cancelText: '취소',
+      onOk: () => resolve(true),
+      onCancel: () => resolve(false),
+    })
+  })
+  if (!ok) {
+    rerunIntent.value = false
     return
   }
+  handleSubmit()
+}
+
+async function handleSubmit() {
   if (!form.body_md.trim()) {
     message.warning('본문을 입력해주세요')
     return
@@ -235,8 +329,30 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
+    if (isEdit.value) {
+      // 수정
+      await ingestApi.update(editingId.value, {
+        title: form.title || undefined,  // 빈 문자열이면 백엔드가 자동 추출
+        body_md: form.body_md,
+        type: form.type,
+        priority: form.priority,
+        category: form.category || undefined,
+        source_url: form.source_url || undefined,
+        source_author: form.source_author || undefined,
+        rerun: wasDone.value && rerunIntent.value,
+      })
+      message.success(
+        wasDone.value && rerunIntent.value
+          ? '저장되었어요. AI가 다시 정리합니다.'
+          : '저장되었어요'
+      )
+      router.push(`/uploads/${editingId.value}`)
+      return
+    }
+
+    // 신규
     const res = await ingestApi.create({
-      title: form.title,
+      title: form.title || undefined,
       body_md: form.body_md,
       type: form.type,
       priority: form.priority,
@@ -244,7 +360,6 @@ async function handleSubmit() {
       source_url: form.source_url || undefined,
       source_author: form.source_author || undefined,
     })
-
     const postId = res.data.id
 
     for (const f of fileList.value) {
@@ -254,15 +369,14 @@ async function handleSubmit() {
       }
     }
 
-    message.success('자료가 등록되었습니다')
-
+    message.success('자료가 등록되었어요')
     if (form.priority === 'urgent') {
       try { await ingestApi.run(postId) } catch {}
     }
-
     router.push(`/uploads/${postId}`)
   } catch (e: any) {
-    message.error(e?.response?.data?.detail || '저장 실패')
+    const msg = e?.response?.data?.detail || '저장 실패'
+    message.error(msg)
   } finally {
     submitting.value = false
   }

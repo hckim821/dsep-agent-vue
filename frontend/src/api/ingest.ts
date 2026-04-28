@@ -6,7 +6,7 @@ export const ingestApi = {
     apiClient.get<IngestPost[]>('/ingest/posts', { params }),
 
   create: (data: {
-    title: string
+    title?: string  // 비워두면 본문에서 자동 추출
     body_md: string
     type?: string
     priority?: string
@@ -15,6 +15,17 @@ export const ingestApi = {
     source_author?: string
     source_date?: string
   }) => apiClient.post<IngestPost>('/ingest/posts', data),
+
+  update: (id: number, data: {
+    title?: string
+    body_md?: string
+    type?: string
+    priority?: string
+    category?: string
+    source_url?: string
+    source_author?: string
+    rerun?: boolean
+  }) => apiClient.put<{ message: string; post_id: number; rerun: boolean }>(`/ingest/posts/${id}`, data),
 
   get: (id: number) => apiClient.get<IngestDetail>(`/ingest/posts/${id}`),
 

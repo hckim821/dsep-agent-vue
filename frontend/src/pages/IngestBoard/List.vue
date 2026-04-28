@@ -101,6 +101,17 @@
             <span class="text-xs text-gray-500">{{ dayjs(record.created_at).fromNow() }}</span>
           </a-tooltip>
         </template>
+        <template v-if="column.key === 'actions'">
+          <a-button
+            v-if="canEdit(record.status)"
+            type="link"
+            size="small"
+            @click.stop="$router.push(`/uploads/${record.id}/edit`)"
+          >
+            <EditOutlined /> 수정
+          </a-button>
+          <span v-else class="text-gray-300 text-xs">처리 중</span>
+        </template>
       </template>
     </a-table>
   </AppLayout>
@@ -115,6 +126,7 @@ import 'dayjs/locale/ko'
 import {
   PlusOutlined, SearchOutlined, ReloadOutlined, InboxOutlined,
   ClockCircleOutlined, SyncOutlined, CheckCircleOutlined, CloseCircleOutlined,
+  EditOutlined,
 } from '@ant-design/icons-vue'
 import { useIngestStore } from '@/stores/ingest'
 import AppLayout from '@/components/AppLayout.vue'
@@ -138,6 +150,7 @@ const columns = [
   { title: '주제', key: 'category', width: 120 },
   { title: '상태', key: 'status', width: 140 },
   { title: '올린 날짜', key: 'created_at', width: 110 },
+  { title: '', key: 'actions', width: 80 },
 ]
 
 const stats = computed(() => [
@@ -162,6 +175,10 @@ function typeColor(type: string) {
 }
 function typeLabel(type: string) {
   return ({ new: '새 자료', correction: '수정 제안', chat_summary: '대화 정리' } as Record<string, string>)[type] || type
+}
+
+function canEdit(status: string): boolean {
+  return ['pending', 'done', 'failed'].includes(status)
 }
 
 function customRow(record: IngestPost) {

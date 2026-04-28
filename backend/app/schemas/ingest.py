@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 
 class IngestPostCreate(BaseModel):
-    title: str
+    title: Optional[str] = None  # 비워두면 본문에서 자동 추출
     body_md: str
     type: str = "new"
     priority: str = "normal"
