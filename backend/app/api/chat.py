@@ -133,14 +133,30 @@ async def send_message(
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
-        # Persist the assistant message in a fresh session (request session
-        # closes once the generator completes).
+        # 응답에서 [[페이지명]] 추출 → citation 데이터 구성
+        citations = []
+        try:
+            import re as _re
+            from app.models.wiki import WikiPage as _WP
+            from app.core.database import SessionLocal as _SL
+            link_titles = list(dict.fromkeys(_re.findall(r"\[\[([^\]|]+?)(?:\|[^\]]+)?\]\]", full_response)))
+            if link_titles:
+                with _SL() as cdb:
+                    for title in link_titles:
+                        pg = cdb.query(_WP).filter_by(title=title.strip()).first()
+                        if pg:
+                            citations.append({"page_id": pg.id, "path": pg.path, "title": pg.title})
+        except Exception:
+            citations = []
+
+        # Persist the assistant message in a fresh session.
         try:
             with SessionLocal() as save_db:
                 assistant_msg = ChatMessage(
                     session_id=session_id,
                     role=ChatMessageRole.assistant,
                     content=full_response,
+                    citations_json=citations or None,
                 )
                 save_db.add(assistant_msg)
                 sess = save_db.get(ChatSession, session_id)
@@ -150,7 +166,7 @@ async def send_message(
         except Exception:
             pass
 
-        yield f"data: {json.dumps({'done': True})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'citations': citations})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 

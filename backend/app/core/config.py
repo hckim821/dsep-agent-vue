@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from typing import List
 
 class Settings(BaseSettings):
@@ -7,11 +8,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
-    VLLM_BASE_URL: str = "http://localhost:8080/v1"
-    VLLM_API_KEY: str = "dummy"
-    VLLM_INGEST_MODEL: str = "Qwen/Qwen3-30B-A3B"
-    VLLM_LINT_MODEL: str = "google/gemma-3-27b-it"
-    VLLM_CHAT_MODEL: str = "Qwen/Qwen3-30B-A3B"
+    VLLM_BASE_URL: str = "http://localhost:11434/v1"
+    VLLM_API_KEY: str = "ollama"
+    VLLM_INGEST_MODEL: str = "gemma4:e4b"
+    VLLM_LINT_MODEL: str = "gemma4:e4b"
+    VLLM_CHAT_MODEL: str = "gemma4:e4b"
 
     STORAGE_BASE_PATH: str = "./storage"
     WIKI_REPO_PATH: str = "./wiki_repo"
@@ -22,7 +23,14 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
 
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors(cls, v):
+        if isinstance(v, str):
+            return [o.strip() for o in v.split(",") if o.strip()]
+        return v
+
     class Config:
-        env_file = ".env"
+        env_file = ("../.env", ".env")  # backend/ 또는 프로젝트 루트 모두 지원
 
 settings = Settings()

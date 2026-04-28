@@ -1,88 +1,209 @@
 <template>
   <AppLayout>
-    <div class="flex h-[calc(100vh-120px)] gap-4">
-      <div class="w-64 flex-shrink-0">
-        <div class="flex justify-between items-center mb-3">
-          <span class="font-bold">채팅 목록</span>
-          <a-button size="small" type="primary" @click="newSession">새 채팅</a-button>
+    <div class="flex h-[calc(100vh-104px)] gap-4 -m-6 p-6">
+      <!-- 좌측 세션 목록 -->
+      <div class="w-64 flex-shrink-0 flex flex-col bg-white rounded-xl border" style="border-color: var(--color-border);">
+        <div class="p-3 border-b" style="border-color: var(--color-border);">
+          <a-button type="primary" block @click="newSession">
+            <PlusOutlined /> 새 채팅
+          </a-button>
         </div>
-        <div
-          v-for="s in sessions"
-          :key="s.id"
-          class="p-3 rounded cursor-pointer hover:bg-gray-100 mb-1"
-          :class="{ 'bg-blue-50 border border-blue-200': currentSessionId === s.id }"
-          @click="selectSession(s.id)"
-        >
-          <div class="text-sm font-medium truncate">{{ s.title || `채팅 #${s.id}` }}</div>
-          <div class="text-xs text-gray-400">{{ dayjs(s.updated_at).fromNow() }}</div>
+        <div class="flex-1 overflow-y-auto p-2">
+          <div v-if="sessions.length === 0" class="text-center text-gray-400 text-xs py-8">
+            아직 채팅이 없습니다
+          </div>
+          <div
+            v-for="s in sessions"
+            :key="s.id"
+            class="p-3 rounded-lg cursor-pointer mb-1 group transition"
+            :class="currentSessionId === s.id ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-gray-50 border border-transparent'"
+            @click="selectSession(s.id)"
+          >
+            <div class="flex items-start gap-2">
+              <MessageOutlined class="mt-1 text-gray-400" :class="currentSessionId === s.id ? '!text-indigo-500' : ''" />
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium truncate" :class="currentSessionId === s.id ? 'text-indigo-700' : 'text-gray-900'">
+                  {{ s.title || `채팅 #${s.id}` }}
+                </div>
+                <div class="text-xs text-gray-400 mt-0.5">{{ dayjs(s.updated_at).fromNow() }}</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="flex-1 flex flex-col">
-        <div class="flex-1 overflow-y-auto p-4 bg-gray-50 rounded" ref="messagesContainer">
-          <div v-for="msg in messages" :key="msg.id" class="mb-4">
+      <!-- 채팅 메인 -->
+      <div class="flex-1 flex flex-col bg-white rounded-xl border overflow-hidden" style="border-color: var(--color-border);">
+        <!-- 빈 상태 (세션 선택 안함) -->
+        <div v-if="!currentSessionId" class="flex-1 flex items-center justify-center">
+          <div class="text-center max-w-md px-6">
+            <div class="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 items-center justify-center mb-4 shadow-lg">
+              <MessageOutlined class="text-2xl text-white" />
+            </div>
+            <h3 class="text-xl font-bold mb-2">위키와 대화해보세요</h3>
+            <p class="text-gray-500 text-sm mb-6">
+              질문하면 위키 내용을 인용해 답변합니다.<br />
+              대화 내용은 새 게시글로 정리할 수도 있어요.
+            </p>
+            <a-button type="primary" size="large" @click="newSession">
+              <PlusOutlined /> 새 대화 시작
+            </a-button>
+          </div>
+        </div>
+
+        <template v-else>
+          <!-- 세션 헤더 -->
+          <div class="px-5 py-3 border-b flex items-center justify-between" style="border-color: var(--color-border);">
+            <div>
+              <div class="font-semibold">{{ currentSession?.title || `채팅 #${currentSessionId}` }}</div>
+              <div class="text-xs text-gray-400">{{ messages.length }}개 메시지</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <a-tooltip title="이 대화를 위키 게시글로 정리">
+                <a-button @click="toIngest" :disabled="messages.length === 0">
+                  <FileTextOutlined /> 정리하기
+                </a-button>
+              </a-tooltip>
+            </div>
+          </div>
+
+          <!-- 메시지 영역 -->
+          <div class="flex-1 overflow-y-auto px-5 py-4" ref="messagesContainer" style="background: #fafbfc;">
+            <!-- 빈 메시지 (세션은 있지만 메시지 없음) -->
+            <div v-if="messages.length === 0 && !streaming" class="flex flex-col items-center justify-center h-full">
+              <div class="text-center max-w-lg">
+                <RobotOutlined class="text-4xl text-gray-300 mb-3" />
+                <h4 class="text-base font-semibold text-gray-700 mb-2">무엇이든 물어보세요</h4>
+                <p class="text-sm text-gray-400 mb-6">위키 내용을 기반으로 답변합니다</p>
+                <div class="grid grid-cols-1 gap-2">
+                  <button
+                    v-for="(s, i) in suggestions"
+                    :key="i"
+                    class="text-left px-4 py-3 bg-white border rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition text-sm"
+                    style="border-color: var(--color-border);"
+                    @click="useSuggestion(s)"
+                  >
+                    <span class="text-indigo-500 mr-2">▸</span>{{ s }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 메시지 리스트 -->
             <div
-              class="max-w-3xl"
-              :class="msg.role === 'user' ? 'ml-auto' : ''"
+              v-for="(msg, idx) in messages"
+              :key="msg.id"
+              class="mb-4 chat-bubble"
             >
-              <div class="text-xs text-gray-400 mb-1">
-                {{ msg.role === 'user' ? '나' : 'AI' }}
+              <!-- 같은 발신자 연속 메시지 묶기 -->
+              <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                <div :class="msg.role === 'user' ? 'max-w-[75%]' : 'max-w-[85%]'">
+                  <div v-if="!isContinuation(idx)" class="flex items-center gap-2 mb-1" :class="msg.role === 'user' ? 'justify-end' : ''">
+                    <a-avatar
+                      v-if="msg.role !== 'user'"
+                      :size="22"
+                      style="background: linear-gradient(135deg, #4f46e5, #7c3aed);"
+                    ><RobotOutlined class="text-xs" /></a-avatar>
+                    <span class="text-xs font-medium text-gray-700">
+                      {{ msg.role === 'user' ? authStore.user?.display_name : 'AI 어시스턴트' }}
+                    </span>
+                    <span class="text-[10px] text-gray-400">{{ dayjs(msg.created_at).format('HH:mm') }}</span>
+                  </div>
+                  <div
+                    class="rounded-2xl px-4 py-2.5"
+                    :class="msg.role === 'user'
+                      ? 'bg-indigo-500 text-white shadow-sm'
+                      : 'bg-white border shadow-sm'"
+                    :style="msg.role !== 'user' ? 'border-color: var(--color-border);' : ''"
+                  >
+                    <MarkdownRender v-if="msg.role === 'assistant'" :content="msg.content" />
+                    <div v-else class="whitespace-pre-wrap text-[14.5px] leading-relaxed">{{ msg.content }}</div>
+                  </div>
+                  <div v-if="msg.citations_json && Array.isArray(msg.citations_json) && msg.citations_json.length" class="mt-1.5 flex flex-wrap gap-1">
+                    <router-link
+                      v-for="(c, ci) in msg.citations_json"
+                      :key="ci"
+                      :to="`/wiki?path=${encodeURIComponent(c.path || '')}`"
+                      class="inline-flex items-center gap-1 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded hover:bg-indigo-100"
+                    >
+                      <BookOutlined />[{{ ci + 1 }}] {{ c.title || c.path }}
+                    </router-link>
+                  </div>
+                </div>
               </div>
-              <div
-                class="rounded-lg p-3"
-                :class="msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-white shadow'"
+            </div>
+
+            <!-- 스트리밍 중 -->
+            <div v-if="streaming" class="mb-4 chat-bubble">
+              <div class="flex justify-start">
+                <div class="max-w-[85%]">
+                  <div class="flex items-center gap-2 mb-1">
+                    <a-avatar :size="22" style="background: linear-gradient(135deg, #4f46e5, #7c3aed);"><RobotOutlined class="text-xs" /></a-avatar>
+                    <span class="text-xs font-medium text-gray-700">AI 어시스턴트</span>
+                    <span class="inline-flex gap-0.5 ml-1">
+                      <span class="typing-dot w-1 h-1 bg-indigo-400 rounded-full"></span>
+                      <span class="typing-dot w-1 h-1 bg-indigo-400 rounded-full"></span>
+                      <span class="typing-dot w-1 h-1 bg-indigo-400 rounded-full"></span>
+                    </span>
+                  </div>
+                  <div class="bg-white border shadow-sm rounded-2xl px-4 py-2.5" style="border-color: var(--color-border);">
+                    <div v-if="!streamingContent" class="text-gray-400 text-sm italic">생각 중...</div>
+                    <MarkdownRender v-else :content="streamingContent" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 입력창 -->
+          <div class="border-t p-4" style="border-color: var(--color-border);">
+            <div class="relative">
+              <a-textarea
+                v-model:value="input"
+                :rows="2"
+                :auto-size="{ minRows: 2, maxRows: 8 }"
+                placeholder="메시지를 입력하세요... (Enter: 전송, Shift+Enter: 줄바꿈)"
+                @keydown="handleKeydown"
+                :disabled="streaming"
+                class="!pr-24"
+              />
+              <a-button
+                type="primary"
+                shape="round"
+                :loading="streaming"
+                :disabled="!input.trim()"
+                @click="sendMessage"
+                class="!absolute !bottom-2 !right-2"
               >
-                <MarkdownRender v-if="msg.role === 'assistant'" :content="msg.content" />
-                <span v-else>{{ msg.content }}</span>
-              </div>
+                <SendOutlined />
+                전송
+              </a-button>
+            </div>
+            <div class="text-[10px] text-gray-400 mt-2 flex items-center gap-3">
+              <span><span class="kbd">Enter</span> 전송</span>
+              <span><span class="kbd">Shift</span>+<span class="kbd">Enter</span> 줄바꿈</span>
             </div>
           </div>
-
-          <div v-if="streaming" class="mb-4">
-            <div class="text-xs text-gray-400 mb-1">AI</div>
-            <div class="bg-white shadow rounded-lg p-3 max-w-3xl">
-              <MarkdownRender :content="streamingContent" />
-              <a-spin size="small" class="ml-2" />
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-3 flex gap-2">
-          <a-textarea
-            v-model:value="input"
-            :rows="2"
-            placeholder="메시지를 입력하세요..."
-            @press-enter.prevent="sendMessage"
-            :disabled="streaming || !currentSessionId"
-          />
-          <div class="flex flex-col gap-1">
-            <a-button
-              type="primary"
-              :loading="streaming"
-              :disabled="!currentSessionId || !input.trim()"
-              @click="sendMessage"
-            >전송</a-button>
-            <a-button
-              size="small"
-              :disabled="!currentSessionId || messages.length === 0"
-              @click="toIngest"
-            >정리하기</a-button>
-          </div>
-        </div>
+        </template>
       </div>
     </div>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/ko'
+import {
+  PlusOutlined, MessageOutlined, FileTextOutlined,
+  RobotOutlined, SendOutlined, BookOutlined,
+} from '@ant-design/icons-vue'
 import { chatApi } from '@/api/chat'
 import type { ChatSession, ChatMessage } from '@/api/types'
+import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/AppLayout.vue'
 import MarkdownRender from '@/components/MarkdownRender.vue'
 
@@ -90,6 +211,7 @@ dayjs.extend(relativeTime)
 dayjs.locale('ko')
 
 const router = useRouter()
+const authStore = useAuthStore()
 const sessions = ref<ChatSession[]>([])
 const messages = ref<ChatMessage[]>([])
 const currentSessionId = ref<number | null>(null)
@@ -97,6 +219,19 @@ const input = ref('')
 const streaming = ref(false)
 const streamingContent = ref('')
 const messagesContainer = ref<HTMLElement>()
+
+const suggestions = [
+  '위키에 어떤 페이지들이 있는지 알려줘',
+  '최근에 추가된 개념들을 요약해줘',
+  '서로 모순되는 내용이 있는지 검토해줘',
+]
+
+const currentSession = computed(() => sessions.value.find(s => s.id === currentSessionId.value))
+
+function isContinuation(idx: number): boolean {
+  if (idx === 0) return false
+  return messages.value[idx].role === messages.value[idx - 1].role
+}
 
 async function loadSessions() {
   const res = await chatApi.listSessions()
@@ -114,6 +249,18 @@ async function newSession() {
   const res = await chatApi.createSession()
   sessions.value.unshift(res.data)
   await selectSession(res.data.id)
+}
+
+function useSuggestion(s: string) {
+  input.value = s
+  sendMessage()
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    if (!streaming.value) sendMessage()
+  }
 }
 
 async function sendMessage() {
@@ -149,6 +296,7 @@ async function sendMessage() {
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+    let citations: any = null
 
     while (true) {
       const { done, value } = await reader.read()
@@ -166,12 +314,16 @@ async function sendMessage() {
             streamingContent.value += data.delta
             await scrollBottom()
           }
+          if (data.citations) citations = data.citations
+          if (data.error) {
+            message.error('AI 응답 오류: ' + data.error)
+          }
           if (data.done) {
             messages.value.push({
               id: Date.now() + 1,
               role: 'assistant',
               content: streamingContent.value,
-              citations_json: data.citations ?? null,
+              citations_json: citations,
               created_at: new Date().toISOString(),
             })
             streamingContent.value = ''
@@ -193,7 +345,7 @@ async function toIngest() {
   if (!currentSessionId.value) return
   try {
     const res = await chatApi.toIngest(currentSessionId.value)
-    message.success('Ingest 게시글이 생성되었습니다')
+    message.success('Ingest 게시글이 생성되었습니다 (미검증 표시)')
     router.push(`/ingest/${res.data.post_id}`)
   } catch {
     message.error('변환 실패')

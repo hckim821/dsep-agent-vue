@@ -1,72 +1,113 @@
 <template>
   <AppLayout>
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="text-xl font-bold">Lint 결과 대시보드</h2>
-      <a-button type="primary" :loading="running" @click="runLint">Lint 실행</a-button>
-    </div>
-
-    <div class="flex gap-3 mb-4">
-      <a-select v-model:value="filterType" placeholder="타입 필터" allow-clear style="width: 160px" @change="load">
-        <a-select-option value="contradiction">모순</a-select-option>
-        <a-select-option value="orphan">고아 페이지</a-select-option>
-        <a-select-option value="stale">오래된 페이지</a-select-option>
-        <a-select-option value="missing_entity">누락 개념</a-select-option>
-        <a-select-option value="broken_link">깨진 링크</a-select-option>
-      </a-select>
-      <a-select v-model:value="filterSeverity" placeholder="심각도" allow-clear style="width: 120px" @change="load">
-        <a-select-option value="high">높음</a-select-option>
-        <a-select-option value="medium">보통</a-select-option>
-        <a-select-option value="low">낮음</a-select-option>
-      </a-select>
-      <a-select v-model:value="filterResolved" placeholder="해결 여부" allow-clear style="width: 130px" @change="load">
-        <a-select-option :value="false">미해결</a-select-option>
-        <a-select-option :value="true">해결됨</a-select-option>
-      </a-select>
+    <div class="flex justify-between items-start mb-6">
+      <div>
+        <h2 class="text-2xl font-bold tracking-tight">Lint 결과 대시보드</h2>
+        <p class="text-gray-500 text-sm mt-1">위키의 모순, 고아 페이지, 깨진 링크를 점검합니다</p>
+      </div>
+      <a-button type="primary" size="large" :loading="running" @click="runLint">
+        <ThunderboltOutlined /> Lint 실행
+      </a-button>
     </div>
 
     <a-row :gutter="16" class="mb-6">
-      <a-col :span="5" v-for="stat in stats" :key="stat.type">
-        <a-card size="small" :bordered="false" class="bg-gray-50">
-          <div class="text-xs text-gray-500">{{ typeLabel(stat.type) }}</div>
-          <div class="text-2xl font-bold" :class="stat.count > 0 ? 'text-red-500' : 'text-green-500'">
+      <a-col :xs="12" :sm="8" :lg="5" v-for="stat in stats" :key="stat.type">
+        <div
+          class="stat-card bg-white rounded-xl p-4 border cursor-pointer"
+          :class="filterType === stat.type ? 'ring-2 ring-indigo-300' : ''"
+          style="border-color: var(--color-border);"
+          @click="toggleFilter(stat.type)"
+        >
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-gray-500">{{ typeLabel(stat.type) }}</span>
+            <component :is="stat.icon" :class="stat.iconCls" />
+          </div>
+          <div class="text-3xl font-bold" :class="stat.count > 0 ? stat.colorCls : 'text-gray-300'">
             {{ stat.count }}
           </div>
-        </a-card>
+        </div>
       </a-col>
     </a-row>
 
-    <a-list
-      :data-source="findings"
-      :loading="loading"
-      item-layout="horizontal"
-    >
-      <template #renderItem="{ item }">
-        <a-list-item>
-          <a-list-item-meta>
-            <template #title>
-              <div class="flex items-center gap-2">
-                <a-tag :color="severityColor(item.severity)">{{ severityLabel(item.severity) }}</a-tag>
-                <a-tag>{{ typeLabel(item.type) }}</a-tag>
-                <span>{{ item.description }}</span>
+    <a-card :bordered="false">
+      <template #title>
+        <span>발견된 이슈</span>
+        <a-tag class="ml-2 !m-0">{{ findings.length }}</a-tag>
+      </template>
+      <template #extra>
+        <div class="flex gap-2">
+          <a-select v-model:value="filterType" placeholder="타입 전체" allow-clear style="width: 140px" @change="load">
+            <a-select-option value="contradiction">모순</a-select-option>
+            <a-select-option value="orphan">고아</a-select-option>
+            <a-select-option value="stale">오래됨</a-select-option>
+            <a-select-option value="missing_entity">누락</a-select-option>
+            <a-select-option value="broken_link">깨진 링크</a-select-option>
+          </a-select>
+          <a-select v-model:value="filterSeverity" placeholder="심각도" allow-clear style="width: 110px" @change="load">
+            <a-select-option value="high">높음</a-select-option>
+            <a-select-option value="medium">보통</a-select-option>
+            <a-select-option value="low">낮음</a-select-option>
+          </a-select>
+          <a-select v-model:value="filterResolvedStr" placeholder="해결 여부" allow-clear style="width: 130px" @change="load">
+            <a-select-option value="unresolved">미해결</a-select-option>
+            <a-select-option value="resolved">해결됨</a-select-option>
+          </a-select>
+        </div>
+      </template>
+
+      <div v-if="loading" class="text-center py-12">
+        <a-spin size="large" />
+      </div>
+      <div v-else-if="findings.length === 0" class="empty-state">
+        <CheckCircleOutlined class="empty-state-icon" style="color: #10b981;" />
+        <div class="text-base font-medium mb-1 text-gray-700">이슈가 없습니다</div>
+        <div class="text-sm">위키가 건강한 상태입니다 ✨</div>
+        <a-button class="mt-4" :loading="running" @click="runLint">
+          <SyncOutlined /> 다시 검사하기
+        </a-button>
+      </div>
+
+      <div v-else class="space-y-2">
+        <div
+          v-for="item in findings"
+          :key="item.id"
+          class="border rounded-lg p-4 hover:bg-gray-50 transition"
+          style="border-color: var(--color-border);"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
+              :class="severityBg(item.severity)"
+            >
+              <component :is="typeIconCmp(item.type)" />
+            </div>
+
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class="text-xs font-medium px-2 py-0.5 rounded" :class="severityCls(item.severity)">
+                  {{ severityLabel(item.severity) }}
+                </span>
+                <span class="text-xs text-gray-500 font-medium">{{ typeLabel(item.type) }}</span>
+                <a-tag v-if="item.resolved_at" color="green" class="!m-0 !text-[10px]">해결됨</a-tag>
               </div>
-            </template>
-            <template #description>
-              <span class="text-xs text-gray-400">
-                발견: {{ dayjs(item.detected_at).format('YYYY-MM-DD HH:mm') }}
+              <div class="text-sm text-gray-800">{{ item.description }}</div>
+              <div class="text-xs text-gray-400 mt-1">
+                <span>발견: {{ dayjs(item.detected_at).format('YYYY-MM-DD HH:mm') }}</span>
                 <span v-if="item.resolved_at"> · 해결: {{ dayjs(item.resolved_at).format('YYYY-MM-DD') }}</span>
-              </span>
-            </template>
-          </a-list-item-meta>
-          <template #actions>
+              </div>
+            </div>
+
             <a-button
               v-if="!item.resolved_at"
               size="small"
               @click="createIngest(item)"
-            >Ingest 보충</a-button>
-          </template>
-        </a-list-item>
-      </template>
-    </a-list>
+            >
+              <PlusOutlined /> Ingest 보충
+            </a-button>
+          </div>
+        </div>
+      </div>
+    </a-card>
   </AppLayout>
 </template>
 
@@ -75,6 +116,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
+import {
+  ThunderboltOutlined, CheckCircleOutlined, PlusOutlined, SyncOutlined,
+  WarningOutlined, DisconnectOutlined, ClockCircleOutlined, QuestionCircleOutlined, BranchesOutlined,
+} from '@ant-design/icons-vue'
 import { lintApi } from '@/api/lint'
 import type { LintFinding } from '@/api/types'
 import AppLayout from '@/components/AppLayout.vue'
@@ -85,7 +130,7 @@ const loading = ref(false)
 const running = ref(false)
 const filterType = ref<string | undefined>()
 const filterSeverity = ref<string | undefined>()
-const filterResolved = ref<boolean | undefined>()
+const filterResolvedStr = ref<string | undefined>()
 
 const typeLabels: Record<string, string> = {
   contradiction: '모순',
@@ -95,31 +140,68 @@ const typeLabels: Record<string, string> = {
   broken_link: '깨진 링크',
 }
 
+const typeIcons: Record<string, any> = {
+  contradiction: WarningOutlined,
+  orphan: DisconnectOutlined,
+  stale: ClockCircleOutlined,
+  missing_entity: QuestionCircleOutlined,
+  broken_link: BranchesOutlined,
+}
+
 const stats = computed(() => {
   const types = ['contradiction', 'orphan', 'stale', 'missing_entity', 'broken_link']
+  const colorMap: Record<string, { color: string; iconCls: string }> = {
+    contradiction: { color: 'text-red-600', iconCls: 'text-red-300 text-xl' },
+    orphan: { color: 'text-orange-600', iconCls: 'text-orange-300 text-xl' },
+    stale: { color: 'text-yellow-600', iconCls: 'text-yellow-300 text-xl' },
+    missing_entity: { color: 'text-purple-600', iconCls: 'text-purple-300 text-xl' },
+    broken_link: { color: 'text-pink-600', iconCls: 'text-pink-300 text-xl' },
+  }
   return types.map(t => ({
     type: t,
     count: findings.value.filter(f => f.type === t && !f.resolved_at).length,
+    colorCls: colorMap[t].color,
+    iconCls: colorMap[t].iconCls,
+    icon: typeIcons[t],
   }))
 })
 
-function typeLabel(type: string) { return typeLabels[type] || type }
+function typeLabel(t: string) { return typeLabels[t] || t }
+function typeIconCmp(t: string) { return typeIcons[t] || WarningOutlined }
+
 function severityLabel(s: string) {
-  const map: Record<string, string> = { high: '높음', medium: '보통', low: '낮음' }
-  return map[s] || s
+  return ({ high: '높음', medium: '보통', low: '낮음' } as Record<string, string>)[s] || s
 }
-function severityColor(s: string) {
-  const map: Record<string, string> = { high: 'red', medium: 'orange', low: 'default' }
-  return map[s] || 'default'
+function severityBg(s: string) {
+  return ({
+    high: 'bg-red-100 text-red-600',
+    medium: 'bg-orange-100 text-orange-600',
+    low: 'bg-gray-100 text-gray-500',
+  } as Record<string, string>)[s] || 'bg-gray-100 text-gray-500'
+}
+function severityCls(s: string) {
+  return ({
+    high: 'bg-red-50 text-red-600',
+    medium: 'bg-orange-50 text-orange-600',
+    low: 'bg-gray-100 text-gray-600',
+  } as Record<string, string>)[s] || 'bg-gray-100 text-gray-600'
+}
+
+function toggleFilter(type: string) {
+  filterType.value = filterType.value === type ? undefined : type
+  load()
 }
 
 async function load() {
   loading.value = true
   try {
+    const resolved = filterResolvedStr.value === 'resolved' ? true
+      : filterResolvedStr.value === 'unresolved' ? false
+      : undefined
     const res = await lintApi.listFindings({
       type: filterType.value,
       severity: filterSeverity.value,
-      resolved: filterResolved.value,
+      resolved,
     })
     findings.value = res.data
   } finally {
@@ -131,7 +213,7 @@ async function runLint() {
   running.value = true
   try {
     await lintApi.runLint()
-    message.success('Lint를 시작했습니다. 잠시 후 결과를 확인하세요.')
+    message.success('Lint를 시작했습니다. 잠시 후 결과가 표시됩니다.')
     setTimeout(load, 5000)
   } catch (e: any) {
     message.error(e?.response?.data?.detail || 'Lint 실행 실패')
@@ -145,8 +227,7 @@ function createIngest(finding: LintFinding) {
     path: '/ingest/new',
     query: {
       type: 'new',
-      category: finding.type,
-      title: `Lint 보충: ${typeLabel(finding.type)} — ${finding.description?.slice(0, 60)}`,
+      title: `Lint 보충: ${typeLabel(finding.type)}`,
     },
   })
 }

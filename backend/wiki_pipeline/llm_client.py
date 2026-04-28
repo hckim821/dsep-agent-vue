@@ -23,13 +23,26 @@ class LLMClient:
     def __init__(self) -> None:
         from openai import OpenAI
 
-        self.base_url = os.getenv("VLLM_BASE_URL", "http://localhost:8080/v1")
-        self.api_key = os.getenv("VLLM_API_KEY", "EMPTY")
-        self.default_model = os.getenv("VLLM_DEFAULT_MODEL", "default")
+        # settings 우선, 없으면 os.getenv 폴백 (DAG 환경 대비)
+        try:
+            from app.core.config import settings
+            self.base_url = settings.VLLM_BASE_URL
+            self.api_key = settings.VLLM_API_KEY
+            ingest_model = settings.VLLM_INGEST_MODEL
+            lint_model = settings.VLLM_LINT_MODEL
+            chat_model = settings.VLLM_CHAT_MODEL
+        except Exception:
+            self.base_url = os.getenv("VLLM_BASE_URL", "http://localhost:11434/v1")
+            self.api_key = os.getenv("VLLM_API_KEY", "ollama")
+            ingest_model = os.getenv("VLLM_INGEST_MODEL", "gemma4:e4b")
+            lint_model = os.getenv("VLLM_LINT_MODEL", "gemma4:e4b")
+            chat_model = os.getenv("VLLM_CHAT_MODEL", "gemma4:e4b")
+
+        self.default_model = ingest_model
         self.task_models = {
-            "ingest": os.getenv("VLLM_INGEST_MODEL", self.default_model),
-            "lint": os.getenv("VLLM_LINT_MODEL", self.default_model),
-            "chat": os.getenv("VLLM_CHAT_MODEL", self.default_model),
+            "ingest": ingest_model,
+            "lint": lint_model,
+            "chat": chat_model,
         }
         self._client = OpenAI(base_url=self.base_url, api_key=self.api_key)
 
