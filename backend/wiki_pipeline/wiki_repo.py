@@ -13,7 +13,18 @@ _BACKLINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
 
 
 def get_wiki_repo_path() -> Path:
-    return Path(os.getenv("WIKI_REPO_PATH", "./wiki_repo")).resolve()
+    """Resolve WIKI_REPO_PATH. If relative, resolve against the project root
+    (parent of `backend/`) so that running from backend/ vs project root gives
+    the same directory."""
+    raw = os.getenv("WIKI_REPO_PATH", "./wiki_repo")
+    p = Path(raw)
+    if not p.is_absolute():
+        # backend/wiki_pipeline/wiki_repo.py → project root is parents[2]
+        project_root = Path(__file__).resolve().parents[2]
+        p = (project_root / raw).resolve()
+    else:
+        p = p.resolve()
+    return p
 
 
 def get_repo() -> git.Repo:

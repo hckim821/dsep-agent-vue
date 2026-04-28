@@ -41,18 +41,29 @@ def run_lint(check_types: Optional[list[str]] = None) -> list[LintFinding]:
     with get_session() as session:
         pages = session.query(WikiPage).all()
 
-        if "orphan" in selected:
-            findings.extend(_detect_orphans(session, pages))
-        if "broken_link" in selected:
-            findings.extend(_detect_broken_links(session, pages))
-        if "missing_entity" in selected:
-            findings.extend(_detect_missing_entities(session, pages))
-        if "stale" in selected:
-            findings.extend(_detect_stale(session, pages))
-        if "contradiction" in selected:
-            findings.extend(_detect_contradictions_llm(session, pages))
+        if pages:
+            if "orphan" in selected:
+                findings.extend(_detect_orphans(session, pages))
+            if "broken_link" in selected:
+                findings.extend(_detect_broken_links(session, pages))
+            if "missing_entity" in selected:
+                findings.extend(_detect_missing_entities(session, pages))
+            if "stale" in selected:
+                findings.extend(_detect_stale(session, pages))
+            if "contradiction" in selected:
+                findings.extend(_detect_contradictions_llm(session, pages))
 
+        # 동일 type+description 중복 방지 (이전 점검과 비교)
+        existing = session.query(DBLintFinding).filter(
+            DBLintFinding.resolved_at.is_(None)
+        ).all()
+        existing_keys = {(f.type.value if hasattr(f.type, "value") else f.type, f.description) for f in existing}
+
+        added = 0
         for f in findings:
+            key = (f.type, f.description)
+            if key in existing_keys:
+                continue
             session.add(
                 DBLintFinding(
                     type=LintFindingType(f.type),
@@ -62,6 +73,8 @@ def run_lint(check_types: Optional[list[str]] = None) -> list[LintFinding]:
                     detected_at=datetime.now(timezone.utc),
                 )
             )
+            existing_keys.add(key)
+            added += 1
 
     return findings
 

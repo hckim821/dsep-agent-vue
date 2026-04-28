@@ -6,5 +6,8 @@ export const lintApi = {
     apiClient.get<LintFinding[]>('/lint/findings', { params }),
 
   runLint: (checkTypes?: string[]) =>
-    apiClient.post('/lint/run', checkTypes ? { check_types: checkTypes } : {}),
+    apiClient.post<{ message: string; total: number; by_type: Record<string, number> }>(
+      '/lint/run',
+      checkTypes ? { check_types: checkTypes } : {},
+    ),
 }

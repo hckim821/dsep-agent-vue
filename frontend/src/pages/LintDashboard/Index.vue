@@ -60,10 +60,11 @@
       </div>
       <div v-else-if="findings.length === 0" class="empty-state">
         <CheckCircleOutlined class="empty-state-icon" style="color: #10b981;" />
-        <div class="text-base font-medium mb-1 text-gray-700">문제 없어요!</div>
-        <div class="text-sm">지식베이스가 건강한 상태입니다 ✨</div>
-        <a-button class="mt-4" :loading="running" @click="runLint">
-          <SyncOutlined /> 다시 점검하기
+        <div class="text-base font-medium mb-1 text-gray-700">아직 점검 결과가 없어요</div>
+        <div class="text-sm mb-2">위 "지금 점검 시작" 버튼으로 점검을 실행해 보세요</div>
+        <div class="text-xs text-gray-400">자료가 등록되고 정리되면 점검할 거리가 생깁니다</div>
+        <a-button class="mt-4" type="primary" :loading="running" @click="runLint">
+          <ThunderboltOutlined /> 지금 점검하기
         </a-button>
       </div>
 
@@ -212,11 +213,17 @@ async function load() {
 async function runLint() {
   running.value = true
   try {
-    await lintApi.runLint()
-    message.success('Lint를 시작했습니다. 잠시 후 결과가 표시됩니다.')
-    setTimeout(load, 5000)
+    const res = await lintApi.runLint()
+    const total = res.data?.total ?? 0
+    if (total === 0) {
+      message.success('점검 완료 — 새로 발견된 문제가 없어요')
+    } else {
+      message.success(`점검 완료 — ${total}건 발견`)
+    }
+    await load()
   } catch (e: any) {
-    message.error(e?.response?.data?.detail || 'Lint 실행 실패')
+    const detail = e?.response?.data?.detail
+    message.error(typeof detail === 'string' ? detail : '품질 점검 실행 실패')
   } finally {
     running.value = false
   }

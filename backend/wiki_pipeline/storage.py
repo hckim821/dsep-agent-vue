@@ -18,9 +18,15 @@ class SavedFile(TypedDict):
 
 def get_storage_base() -> Path:
     """Resolved absolute root for all pipeline-managed files."""
-    base = Path(os.getenv("STORAGE_BASE_PATH", "./storage")).resolve()
-    base.mkdir(parents=True, exist_ok=True)
-    return base
+    raw = os.getenv("STORAGE_BASE_PATH", "./storage")
+    p = Path(raw)
+    if not p.is_absolute():
+        project_root = Path(__file__).resolve().parents[2]
+        p = (project_root / raw).resolve()
+    else:
+        p = p.resolve()
+    p.mkdir(parents=True, exist_ok=True)
+    return p
 
 
 def _is_within(child: Path, parent: Path) -> bool:
