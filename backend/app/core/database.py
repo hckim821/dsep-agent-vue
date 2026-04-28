@@ -5,7 +5,16 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
 
-engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
+
+def _ensure_utf8(url: str) -> str:
+    """Make sure pymysql connects with charset=utf8mb4 so Korean text round-trips correctly."""
+    if "charset=" in url:
+        return url
+    sep = "&" if "?" in url else "?"
+    return f"{url}{sep}charset=utf8mb4"
+
+
+engine = create_engine(_ensure_utf8(settings.DATABASE_URL), pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

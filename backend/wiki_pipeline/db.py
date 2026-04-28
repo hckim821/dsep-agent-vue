@@ -21,6 +21,10 @@ DATABASE_URL = os.getenv(
     "mysql+pymysql://user01:dkagh12%23@localhost:3306/llmwiki",
 )
 
+# 한글 문자열이 깨지지 않도록 charset=utf8mb4 보장
+if "charset=" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL + ("&" if "?" in DATABASE_URL else "?") + "charset=utf8mb4"
+
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
