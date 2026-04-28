@@ -23,6 +23,7 @@ from typing import Optional
 
 from wiki_pipeline.db import get_session
 from wiki_pipeline.llm_client import get_llm_client
+from wiki_pipeline.ocr import process_post_images
 from wiki_pipeline.wiki_repo import (
     append_log,
     commit_changes,
@@ -65,6 +66,14 @@ def ingest_post(post_id: int) -> IngestResult:
             result.error = f"Post {post_id} not found"
             return result
 
+        # OCR 단계 (vision 모델이 설정된 경우만)
+        post.status = IngestPostStatus.ocr_running
+        session.flush()
+        try:
+            process_post_images(post_id)
+        except Exception:
+            # OCR 실패해도 ingest는 계속 진행
+            pass
         post.status = IngestPostStatus.ingest_running
         session.flush()
 
@@ -112,11 +121,30 @@ def ingest_post(post_id: int) -> IngestResult:
             pages_listing = "\n".join(f"- {p}" for p in all_paths) or "(empty wiki)"
 
             # --- Step 3: ask LLM for a create/update plan ---
-            system_prompt = (
+            base_prompt = (
                 _load_prompt("correction_system.md")
                 if post.type.value == "correction"
                 else _load_prompt("ingest_system.md")
             )
+            schema_prompt = _load_active_schema(session)
+            system_prompt = base_prompt
+            if schema_prompt:
+                system_prompt = (
+                    f"{base_prompt}\n\n"
+                    "## Wiki Schema (current active version)\n"
+                    f"{schema_prompt}\n\n"
+                    "Follow the schema above strictly when creating or editing pages."
+                )
+
+            # type=correction: 강제로 target_wiki_path를 update에 포함
+            correction_hint = ""
+            if post.type.value == "correction" and post.target_wiki_path:
+                correction_hint = (
+                    f"\n\nIMPORTANT: This is a CORRECTION proposal targeting `{post.target_wiki_path}`. "
+                    "You MUST include this path in the 'update' list. "
+                    "Carefully reconcile the proposal with existing content; "
+                    "if the proposal contradicts existing facts, document both views with sources."
+                )
 
             plan_messages = [
                 {"role": "system", "content": system_prompt},
@@ -124,7 +152,7 @@ def ingest_post(post_id: int) -> IngestResult:
                     "role": "user",
                     "content": (
                         f"Current wiki pages:\n{pages_listing}\n\n"
-                        f"New ingest content:\n{context_text}\n\n"
+                        f"New ingest content:\n{context_text}{correction_hint}\n\n"
                         "Respond with a JSON plan in this exact shape:\n"
                         '{"create": ["path/to/new.md"], "update": ["path/to/existing.md"], "cross_ref": ["path/to/ref.md"]}\n'
                         "Only include paths under known top-level categories "
@@ -300,6 +328,20 @@ def _load_prompt(filename: str) -> str:
         with open(path, encoding="utf-8") as f:
             return f.read()
     return "You are a wiki management assistant."
+
+
+def _load_active_schema(session) -> str:
+    """Load the latest schema_versions row content. Returns empty string on miss."""
+    try:
+        from app.models.schema_version import SchemaVersion
+        latest = (
+            session.query(SchemaVersion)
+            .order_by(SchemaVersion.updated_at.desc())
+            .first()
+        )
+        return (latest.content or "") if latest else ""
+    except Exception:
+        return ""
 
 
 def _parse_page_plan(llm_response: str) -> dict:

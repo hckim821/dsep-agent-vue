@@ -220,14 +220,16 @@ airflow scheduler &
 
 ### 현재 제약
 - **MariaDB**: `WITH PARSER ngram` 미지원으로 한글 FULLTEXT 검색 품질 제한. MySQL 8.0 전환 권장.
-- **OCR**: Phase 1 stub. PaddleOCR / vision LLM은 Phase 3에서 추가.
-- **`[[위키링크]]`**: 현재 굵게 렌더링만. Phase 2에서 vue-router 클릭 라우팅 추가 예정.
 - **Airflow**: Windows 환경에서는 WSL 또는 Docker 사용 권장.
 
-### Phase 2 예정
-- `[[위키링크]]` → vue-router 클릭 라우팅
-- 그래프 뷰 (vis-network)
-- OCR 이미지 처리 (PaddleOCR / vision LLM)
+### Phase 2 (완료)
+- `[[위키링크]]` → vue-router 클릭 라우팅 (깨진 링크 빨강 표시)
+- 위키 그래프 뷰 (vis-network) — 카테고리별 색상, 백링크 기반 노드 크기
+- OCR 이미지 처리 (Ollama/vLLM vision 모델, OpenAI 호환)
+  - `VLLM_VISION_MODEL` 환경변수에 vision 모델명 지정 (예: `llava:13b`)
+  - 비워두면 OCR 단계 자동 건너뜀
+- Schema → LLM 시스템 프롬프트 자동 주입 (ingest, chat 모두)
+- type=correction 분기 강화 (target_wiki_path 강제 update 포함)
 
 ### Phase 3 예정
 - Meilisearch / Typesense 도입 (한국어 검색 품질 개선)

@@ -20,4 +20,10 @@ export const wikiApi = {
 
   search: (q: string) =>
     apiClient.get<SearchResult[]>('/wiki/search', { params: { q } }),
+
+  getGraph: () => apiClient.get<{
+    nodes: { id: number; label: string; path: string; category: string; color: string; value: number }[]
+    edges: { from: number; to: number; arrows: string }[]
+    stats: { node_count: number; edge_count: number }
+  }>('/wiki/graph'),
 }

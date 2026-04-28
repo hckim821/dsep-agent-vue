@@ -107,6 +107,54 @@ def get_page_sources(
     return result
 
 
+@router.get("/graph")
+def get_graph(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Returns nodes/edges for a force-directed graph visualization."""
+    pages = db.query(WikiPage).all()
+    backlinks = db.query(WikiBacklink).all()
+
+    # Color per category
+    color_map = {
+        "entities": "#4f46e5",
+        "concepts": "#7c3aed",
+        "comparisons": "#db2777",
+    }
+
+    # 백링크 카운트 → degree
+    indeg: dict[int, int] = {}
+    for bl in backlinks:
+        indeg[bl.to_page_id] = indeg.get(bl.to_page_id, 0) + 1
+
+    nodes = []
+    for p in pages:
+        deg = indeg.get(p.id, 0)
+        nodes.append({
+            "id": p.id,
+            "label": p.title,
+            "path": p.path,
+            "category": p.category or "misc",
+            "color": color_map.get(p.category or "", "#9ca3af"),
+            "value": deg + 1,  # 노드 크기는 백링크 수 기반
+        })
+
+    edges = [
+        {"from": bl.from_page_id, "to": bl.to_page_id, "arrows": "to"}
+        for bl in backlinks
+    ]
+
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "stats": {
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+        },
+    }
+
+
 @router.get("/search", response_model=list[SearchResult])
 def search(
     q: str = Query(..., min_length=1),

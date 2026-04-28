@@ -1,6 +1,23 @@
 <template>
   <AppLayout>
-    <div class="flex gap-4" style="height: calc(100vh - 104px); margin: -24px; padding: 24px;">
+    <!-- 뷰 모드 토글 -->
+    <div class="mb-4 flex items-center justify-between">
+      <a-radio-group v-model:value="viewMode" button-style="solid">
+        <a-radio-button value="doc"><FileTextOutlined /> 문서 뷰</a-radio-button>
+        <a-radio-button value="graph"><ApartmentOutlined /> 그래프 뷰</a-radio-button>
+      </a-radio-group>
+      <div class="text-xs text-gray-400" v-if="viewMode === 'graph'">
+        노드 더블클릭으로 페이지 이동 · 드래그로 위치 조정 · 휠로 확대/축소
+      </div>
+    </div>
+
+    <!-- 그래프 뷰 -->
+    <div v-show="viewMode === 'graph'" style="height: calc(100vh - 160px);">
+      <WikiGraph />
+    </div>
+
+    <!-- 문서 뷰 -->
+    <div v-show="viewMode === 'doc'" class="flex gap-4" style="height: calc(100vh - 160px);">
       <!-- 좌측: 트리 + 검색 -->
       <div class="w-72 flex-shrink-0 flex flex-col bg-white rounded-xl border" style="border-color: var(--color-border);">
         <div class="p-3 border-b" style="border-color: var(--color-border);">
@@ -182,11 +199,13 @@ import { message } from 'ant-design-vue'
 import {
   SearchOutlined, BookOutlined, FileOutlined, LinkOutlined, EditOutlined,
   ArrowLeftOutlined, ApartmentOutlined, BlockOutlined, SwapOutlined, FolderOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons-vue'
 import { wikiApi } from '@/api/wiki'
 import type { WikiPageDetail, WikiPage, SearchResult } from '@/api/types'
 import AppLayout from '@/components/AppLayout.vue'
 import MarkdownRender from '@/components/MarkdownRender.vue'
+import WikiGraph from '@/components/WikiGraph.vue'
 
 dayjs.extend(relativeTime)
 dayjs.locale('ko')
@@ -194,6 +213,7 @@ dayjs.locale('ko')
 const route = useRoute()
 const router = useRouter()
 
+const viewMode = ref<'doc' | 'graph'>('doc')
 const allPages = ref<WikiPage[]>([])
 const treeLoading = ref(false)
 const currentPage = ref<WikiPageDetail | null>(null)

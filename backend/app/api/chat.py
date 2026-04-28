@@ -69,26 +69,60 @@ def get_messages(
     )
 
 
-def _build_chat_system_prompt() -> str:
+def _build_chat_system_prompt(db: Session) -> str:
     if _wiki_pipeline_path() not in sys.path:
         sys.path.insert(0, _wiki_pipeline_path())
+
+    # 1) chat_system.md 기본 프롬프트
+    base_prompt = "You are a helpful wiki assistant."
+    try:
+        prompts_dir = os.path.join(_wiki_pipeline_path(), "wiki_pipeline", "prompts")
+        chat_md = os.path.join(prompts_dir, "chat_system.md")
+        if os.path.exists(chat_md):
+            with open(chat_md, encoding="utf-8") as f:
+                base_prompt = f.read()
+    except Exception:
+        pass
+
+    # 2) 현재 활성 schema 주입
+    schema_block = ""
+    try:
+        from app.models.schema_version import SchemaVersion
+        latest = (
+            db.query(SchemaVersion)
+            .order_by(SchemaVersion.updated_at.desc())
+            .first()
+        )
+        if latest and latest.content:
+            schema_block = (
+                "\n\n## Wiki Schema (active)\n"
+                f"{latest.content}"
+            )
+    except Exception:
+        pass
+
+    # 3) 위키 컨텍스트
+    wiki_context = ""
     try:
         from wiki_pipeline.wiki_repo import list_pages, read_page
-
         pages = list_pages()[:10]
-        wiki_context = ""
         for p in pages:
             content = read_page(p)
             if content:
-                wiki_context += f"\n\n## {p}\n{content[:500]}"
-        return (
-            "You are a wiki assistant. Answer based on the following wiki content:"
-            f"\n{wiki_context}\n\n"
-            "Always cite pages with [[Page Title]] notation. "
-            "Mark unverified claims with [UNVERIFIED]."
-        )
+                wiki_context += f"\n\n### {p}\n{content[:500]}"
     except Exception:
-        return "You are a helpful wiki assistant."
+        pass
+
+    return (
+        f"{base_prompt}{schema_block}\n\n"
+        "## Wiki Content\n"
+        f"{wiki_context}\n\n"
+        "## Rules\n"
+        "- Answer based on the wiki content above.\n"
+        "- Cite pages with [[Page Title]] notation when referencing them.\n"
+        "- Mark unverified claims with [UNVERIFIED].\n"
+        "- If something isn't in the wiki, clearly state so."
+    )
 
 
 @router.post("/sessions/{session_id}/messages")
@@ -116,7 +150,7 @@ async def send_message(
     )
     messages = [{"role": m.role.value, "content": m.content} for m in history]
 
-    system_content = _build_chat_system_prompt()
+    system_content = _build_chat_system_prompt(db)
     full_messages = [{"role": "system", "content": system_content}] + messages
 
     async def generate():

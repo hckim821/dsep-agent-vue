@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     VLLM_INGEST_MODEL: str = "gemma4:e4b"
     VLLM_LINT_MODEL: str = "gemma4:e4b"
     VLLM_CHAT_MODEL: str = "gemma4:e4b"
+    VLLM_VISION_MODEL: str = ""  # 예: "llava:13b" — 비워두면 OCR 건너뜀
 
     STORAGE_BASE_PATH: str = "./storage"
     WIKI_REPO_PATH: str = "./wiki_repo"
