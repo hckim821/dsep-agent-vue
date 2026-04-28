@@ -6,8 +6,8 @@
     <div v-else-if="detail">
       <!-- 헤더 -->
       <div class="mb-4">
-        <a-button type="text" size="small" @click="$router.push('/ingest')" class="-ml-2 mb-2">
-          <LeftOutlined /> Ingest 목록
+        <a-button type="text" size="small" @click="$router.push('/uploads')" class="-ml-2 mb-2">
+          <LeftOutlined /> 내가 올린 자료
         </a-button>
         <div class="flex justify-between items-start gap-4">
           <div class="flex-1 min-w-0">
@@ -18,7 +18,7 @@
               <a-tag v-if="detail.post.unverified" color="warning" class="!m-0">⚠ 미검증</a-tag>
               <StatusBadge :status="detail.post.status" />
               <span v-if="polling" class="inline-flex items-center gap-1 text-xs text-indigo-500">
-                <SyncOutlined spin /> 실시간 갱신 중
+                <SyncOutlined spin /> 진행 상황 자동 갱신
               </span>
             </div>
             <h2 class="text-2xl font-bold tracking-tight">{{ detail.post.title }}</h2>
@@ -36,7 +36,7 @@
               @click="handleRun"
               size="large"
             >
-              <PlayCircleOutlined /> 즉시 처리
+              <PlayCircleOutlined /> 지금 정리 시작
             </a-button>
             <a-button
               v-if="detail.post.status === 'failed'"
@@ -46,7 +46,7 @@
               @click="handleRetry"
               size="large"
             >
-              <RedoOutlined /> 재시도
+              <RedoOutlined /> 다시 시도
             </a-button>
           </div>
         </div>
@@ -55,10 +55,10 @@
       <!-- 단계 진행 -->
       <a-card :bordered="false" class="mb-4">
         <a-steps :current="currentStep" :status="stepStatus" size="small">
-          <a-step title="대기" description="게시글 등록" />
-          <a-step title="OCR" :description="ocrSummary" />
-          <a-step title="LLM Ingest" :description="ingestSummary" />
-          <a-step title="완료" :description="commitSummary" />
+          <a-step title="등록 완료" description="자료 접수됨" />
+          <a-step title="이미지 인식" :description="ocrSummary" />
+          <a-step title="AI 정리" :description="ingestSummary" />
+          <a-step title="지식베이스 반영" :description="commitSummary" />
         </a-steps>
       </a-card>
 
@@ -71,7 +71,7 @@
 
           <a-card v-if="detail.post.source_url || detail.post.source_author" :bordered="false" class="mb-4">
             <template #title>
-              <LinkOutlined /> 출처 정보
+              <LinkOutlined /> 출처
             </template>
             <div class="space-y-2 text-sm">
               <div v-if="detail.post.source_url" class="flex items-center gap-2">
@@ -93,7 +93,7 @@
 
           <a-card v-if="latestJob?.log_text || latestJob?.error_text" :bordered="false" class="mb-4">
             <template #title>
-              <FileSearchOutlined /> LLM 작업 로그
+              <FileSearchOutlined /> AI 처리 기록 <span class="text-xs text-gray-400 font-normal ml-1">(고급)</span>
             </template>
             <div v-if="latestJob.log_text" class="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-auto max-h-96 text-xs font-mono leading-relaxed whitespace-pre-wrap">{{ latestJob.log_text }}</div>
             <div v-if="latestJob.error_text" class="mt-3 bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg overflow-auto max-h-96 text-xs font-mono whitespace-pre-wrap">{{ latestJob.error_text }}</div>
@@ -102,24 +102,24 @@
 
         <!-- 우측: 타임라인 + 결과 -->
         <a-col :xs="24" :lg="10">
-          <a-card title="처리 타임라인" :bordered="false" class="mb-4">
+          <a-card title="진행 기록" :bordered="false" class="mb-4">
             <Timeline v-if="detail.jobs.length" :jobs="detail.jobs" />
             <div v-else class="text-center py-6 text-gray-400 text-sm">
               <ClockCircleOutlined class="text-3xl block mb-2" />
-              아직 처리 기록이 없습니다
+              아직 처리되지 않았습니다
             </div>
           </a-card>
 
           <a-card v-if="detail.wiki_pages.length" :bordered="false" class="mb-4">
             <template #title>
-              <BookOutlined /> 연관 위키 페이지
+              <BookOutlined /> 정리된 페이지
               <a-tag class="ml-2 !m-0">{{ detail.wiki_pages.length }}</a-tag>
             </template>
             <div class="space-y-2">
               <router-link
                 v-for="wp in detail.wiki_pages"
                 :key="wp.id"
-                :to="`/wiki?path=${encodeURIComponent(wp.path)}`"
+                :to="`/library?path=${encodeURIComponent(wp.path)}`"
                 class="block p-3 bg-gray-50 hover:bg-indigo-50 rounded-lg transition group"
               >
                 <div class="flex items-start gap-2">
@@ -142,10 +142,10 @@
           <a-card v-if="detail.post.status === 'pending'" :bordered="false" class="mb-4">
             <div class="text-center py-2">
               <ClockCircleOutlined class="text-3xl text-gray-300 mb-2 block" />
-              <p class="text-sm text-gray-600 mb-3">대기 중인 게시글입니다.</p>
-              <p class="text-xs text-gray-400 mb-3">Airflow 일일 배치 또는 즉시 처리 버튼으로 실행됩니다.</p>
+              <p class="text-sm text-gray-600 mb-3">아직 정리가 시작되지 않았어요</p>
+              <p class="text-xs text-gray-400 mb-3">매일 자동으로 처리되지만, 지금 바로 시작할 수도 있어요.</p>
               <a-button type="primary" @click="handleRun" :loading="running" block>
-                <PlayCircleOutlined /> 지금 처리 시작
+                <PlayCircleOutlined /> 지금 정리 시작
               </a-button>
             </div>
           </a-card>
@@ -192,7 +192,7 @@ function typeColor(t: string) {
   return ({ new: 'blue', correction: 'orange', chat_summary: 'purple' } as Record<string, string>)[t] || 'default'
 }
 function typeLabel(t: string) {
-  return ({ new: '신규', correction: '수정 제안', chat_summary: '채팅 요약' } as Record<string, string>)[t] || t
+  return ({ new: '새 자료', correction: '수정 제안', chat_summary: '대화 정리' } as Record<string, string>)[t] || t
 }
 
 const currentStep = computed(() => {
@@ -221,21 +221,21 @@ const stepStatus = computed<'wait' | 'process' | 'finish' | 'error'>(() => {
 
 const ocrSummary = computed(() => {
   const ocrJob = detail.value?.jobs.find(j => j.stage === 'ocr')
-  if (!ocrJob) return '대기'
+  if (!ocrJob) return '대기 중'
   if (ocrJob.status === 'success') return '완료'
-  if (ocrJob.status === 'failed') return '실패'
-  return '진행중'
+  if (ocrJob.status === 'failed') return '문제 발생'
+  return '진행 중'
 })
 const ingestSummary = computed(() => {
   const j = detail.value?.jobs.find(jj => jj.stage === 'ingest')
-  if (!j) return '대기'
-  if (j.status === 'success') return `${j.tokens_used?.toLocaleString() ?? 0} 토큰`
-  if (j.status === 'failed') return '실패'
-  return '진행중'
+  if (!j) return '대기 중'
+  if (j.status === 'success') return '정리 완료'
+  if (j.status === 'failed') return '문제 발생'
+  return 'AI 분석 중'
 })
 const commitSummary = computed(() => {
   if (detail.value?.wiki_pages.length) {
-    return `위키 ${detail.value.wiki_pages.length}개 갱신`
+    return `${detail.value.wiki_pages.length}개 페이지 반영됨`
   }
   return ''
 })

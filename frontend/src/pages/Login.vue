@@ -7,10 +7,10 @@
     <div class="relative z-10 w-full max-w-md mx-4">
       <div class="text-center mb-8">
         <div class="inline-flex w-14 h-14 rounded-2xl bg-white/20 backdrop-blur items-center justify-center mb-4 shadow-lg">
-          <span class="text-2xl font-bold text-white">W</span>
+          <span class="text-2xl font-bold text-white">知</span>
         </div>
-        <h1 class="text-3xl font-bold text-white tracking-tight">LLM Wiki</h1>
-        <p class="text-white/80 mt-2 text-sm">자료를 올리면 LLM이 위키를 빌드합니다</p>
+        <h1 class="text-3xl font-bold text-white tracking-tight">지식 허브</h1>
+        <p class="text-white/80 mt-2 text-sm">자료를 올리면 AI가 정리해주는 우리 팀의 지식베이스</p>
       </div>
 
       <div class="bg-white rounded-2xl shadow-2xl p-8">
@@ -63,8 +63,8 @@
         </div>
       </div>
 
-      <div class="text-center mt-6 text-white/70 text-xs">
-        Karpathy의 llm-wiki 패턴 · Vue 3 + FastAPI + vLLM
+      <div class="text-center mt-6 text-white/60 text-xs">
+        AI가 함께 만들어가는 살아있는 지식
       </div>
     </div>
   </div>

@@ -2,11 +2,11 @@
   <AppLayout>
     <div class="flex justify-between items-start mb-6">
       <div>
-        <h2 class="text-2xl font-bold tracking-tight">Lint 결과 대시보드</h2>
-        <p class="text-gray-500 text-sm mt-1">위키의 모순, 고아 페이지, 깨진 링크를 점검합니다</p>
+        <h2 class="text-2xl font-bold tracking-tight">품질 점검</h2>
+        <p class="text-gray-500 text-sm mt-1">지식베이스의 빈틈, 어긋난 내용, 오래된 페이지를 찾아드려요</p>
       </div>
       <a-button type="primary" size="large" :loading="running" @click="runLint">
-        <ThunderboltOutlined /> Lint 실행
+        <ThunderboltOutlined /> 지금 점검 시작
       </a-button>
     </div>
 
@@ -31,26 +31,26 @@
 
     <a-card :bordered="false">
       <template #title>
-        <span>발견된 이슈</span>
-        <a-tag class="ml-2 !m-0">{{ findings.length }}</a-tag>
+        <span>점검 결과</span>
+        <a-tag class="ml-2 !m-0">{{ findings.length }}건</a-tag>
       </template>
       <template #extra>
         <div class="flex gap-2">
-          <a-select v-model:value="filterType" placeholder="타입 전체" allow-clear style="width: 140px" @change="load">
-            <a-select-option value="contradiction">모순</a-select-option>
-            <a-select-option value="orphan">고아</a-select-option>
-            <a-select-option value="stale">오래됨</a-select-option>
-            <a-select-option value="missing_entity">누락</a-select-option>
-            <a-select-option value="broken_link">깨진 링크</a-select-option>
+          <a-select v-model:value="filterType" placeholder="유형 전체" allow-clear style="width: 170px" @change="load">
+            <a-select-option value="contradiction">서로 어긋남</a-select-option>
+            <a-select-option value="orphan">연결 안 된 페이지</a-select-option>
+            <a-select-option value="stale">오래된 페이지</a-select-option>
+            <a-select-option value="missing_entity">없는 페이지</a-select-option>
+            <a-select-option value="broken_link">잘못된 연결</a-select-option>
           </a-select>
-          <a-select v-model:value="filterSeverity" placeholder="심각도" allow-clear style="width: 110px" @change="load">
+          <a-select v-model:value="filterSeverity" placeholder="중요도" allow-clear style="width: 110px" @change="load">
             <a-select-option value="high">높음</a-select-option>
             <a-select-option value="medium">보통</a-select-option>
             <a-select-option value="low">낮음</a-select-option>
           </a-select>
-          <a-select v-model:value="filterResolvedStr" placeholder="해결 여부" allow-clear style="width: 130px" @change="load">
-            <a-select-option value="unresolved">미해결</a-select-option>
-            <a-select-option value="resolved">해결됨</a-select-option>
+          <a-select v-model:value="filterResolvedStr" placeholder="처리 여부" allow-clear style="width: 130px" @change="load">
+            <a-select-option value="unresolved">아직</a-select-option>
+            <a-select-option value="resolved">처리됨</a-select-option>
           </a-select>
         </div>
       </template>
@@ -60,10 +60,10 @@
       </div>
       <div v-else-if="findings.length === 0" class="empty-state">
         <CheckCircleOutlined class="empty-state-icon" style="color: #10b981;" />
-        <div class="text-base font-medium mb-1 text-gray-700">이슈가 없습니다</div>
-        <div class="text-sm">위키가 건강한 상태입니다 ✨</div>
+        <div class="text-base font-medium mb-1 text-gray-700">문제 없어요!</div>
+        <div class="text-sm">지식베이스가 건강한 상태입니다 ✨</div>
         <a-button class="mt-4" :loading="running" @click="runLint">
-          <SyncOutlined /> 다시 검사하기
+          <SyncOutlined /> 다시 점검하기
         </a-button>
       </div>
 
@@ -88,7 +88,7 @@
                   {{ severityLabel(item.severity) }}
                 </span>
                 <span class="text-xs text-gray-500 font-medium">{{ typeLabel(item.type) }}</span>
-                <a-tag v-if="item.resolved_at" color="green" class="!m-0 !text-[10px]">해결됨</a-tag>
+                <a-tag v-if="item.resolved_at" color="green" class="!m-0 !text-[10px]">처리됨</a-tag>
               </div>
               <div class="text-sm text-gray-800">{{ item.description }}</div>
               <div class="text-xs text-gray-400 mt-1">
@@ -102,7 +102,7 @@
               size="small"
               @click="createIngest(item)"
             >
-              <PlusOutlined /> Ingest 보충
+              <PlusOutlined /> 보충 자료 올리기
             </a-button>
           </div>
         </div>
@@ -133,11 +133,11 @@ const filterSeverity = ref<string | undefined>()
 const filterResolvedStr = ref<string | undefined>()
 
 const typeLabels: Record<string, string> = {
-  contradiction: '모순',
-  orphan: '고아 페이지',
+  contradiction: '서로 어긋남',
+  orphan: '연결되지 않은 페이지',
   stale: '오래된 페이지',
-  missing_entity: '누락 개념',
-  broken_link: '깨진 링크',
+  missing_entity: '아직 만들지 않은 페이지',
+  broken_link: '잘못된 연결',
 }
 
 const typeIcons: Record<string, any> = {
@@ -224,10 +224,10 @@ async function runLint() {
 
 function createIngest(finding: LintFinding) {
   router.push({
-    path: '/ingest/new',
+    path: '/upload',
     query: {
       type: 'new',
-      title: `Lint 보충: ${typeLabel(finding.type)}`,
+      title: `보강: ${typeLabel(finding.type)}`,
     },
   })
 }

@@ -39,7 +39,7 @@ function jobColor(status: string) {
 }
 
 function stageLabel(stage: string) {
-  return ({ ocr: 'OCR (이미지 인식)', ingest: 'LLM Ingest (위키 통합)', lint: 'Lint (검증)' } as Record<string, string>)[stage] ?? stage
+  return ({ ocr: '이미지 인식', ingest: 'AI 정리', lint: '품질 점검' } as Record<string, string>)[stage] ?? stage
 }
 
 function duration(job: IngestJob): string | null {

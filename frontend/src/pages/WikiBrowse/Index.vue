@@ -13,7 +13,7 @@
 
     <!-- 그래프 뷰 -->
     <div v-show="viewMode === 'graph'" style="height: calc(100vh - 160px);">
-      <WikiGraph />
+      <WikiGraph @open-page="openPage" />
     </div>
 
     <!-- 문서 뷰 -->
@@ -34,14 +34,17 @@
           <a-spin v-if="treeLoading" />
           <div v-else-if="!allPages.length" class="empty-state">
             <BookOutlined class="empty-state-icon" />
-            <div class="text-sm font-medium mb-1 text-gray-700">위키가 비어있습니다</div>
-            <div class="text-xs">Ingest를 처리하면 페이지가 생성됩니다</div>
+            <div class="text-sm font-medium mb-1 text-gray-700">아직 정리된 페이지가 없어요</div>
+            <div class="text-xs mb-3">자료를 올리면 AI가 페이지를 만들어요</div>
+            <router-link to="/upload">
+              <a-button type="primary" size="small">자료 올리기</a-button>
+            </router-link>
           </div>
           <div v-else>
             <div v-for="(items, cat) in groupedPages" :key="cat" class="mb-3">
-              <div class="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 py-1.5">
+              <div class="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wider px-2 py-1.5">
                 <component :is="catIcon(cat)" class="text-gray-400" />
-                <span>{{ cat }}</span>
+                <span>{{ catLabel(cat) }}</span>
                 <span class="ml-auto text-gray-300 normal-case font-normal">{{ items.length }}</span>
               </div>
               <button
@@ -65,8 +68,8 @@
         <div v-if="!currentPage" class="flex-1 flex items-center justify-center">
           <div class="text-center max-w-md px-6">
             <BookOutlined class="text-5xl text-gray-300 mb-4" />
-            <h3 class="text-xl font-bold mb-2 text-gray-700">페이지를 선택하세요</h3>
-            <p class="text-gray-500 text-sm">좌측 트리에서 페이지를 클릭하거나, 위에서 검색하세요.</p>
+            <h3 class="text-xl font-bold mb-2 text-gray-700">읽고 싶은 페이지를 골라보세요</h3>
+            <p class="text-gray-500 text-sm">왼쪽 목록에서 클릭하거나, 검색창에서 찾아보세요.</p>
           </div>
         </div>
 
@@ -86,10 +89,10 @@
             </div>
             <div class="flex gap-2 flex-shrink-0">
               <a-button @click="copyPath">
-                <LinkOutlined /> 경로 복사
+                <LinkOutlined /> 링크 복사
               </a-button>
               <a-button type="primary" @click="suggestCorrection">
-                <EditOutlined /> 수정 제안
+                <EditOutlined /> 이 페이지 보강하기
               </a-button>
             </div>
           </div>
@@ -105,19 +108,19 @@
       <div v-if="currentPage" class="w-72 flex-shrink-0 overflow-y-auto space-y-3">
         <a-card :bordered="false" :body-style="{ padding: '12px 16px' }">
           <template #title>
-            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">페이지 정보</span>
+            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">한눈에</span>
           </template>
           <div class="text-xs space-y-2">
             <div class="flex items-center justify-between">
-              <span class="text-gray-500">백링크</span>
+              <span class="text-gray-500">이 페이지를 참조하는 곳</span>
               <span class="font-medium">{{ backlinks.length }}개</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="text-gray-500">출처</span>
+              <span class="text-gray-500">출처가 된 자료</span>
               <span class="font-medium">{{ sources.length }}개</span>
             </div>
             <div v-if="currentPage.category" class="flex items-center justify-between">
-              <span class="text-gray-500">카테고리</span>
+              <span class="text-gray-500">주제</span>
               <code class="text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">{{ currentPage.category }}</code>
             </div>
           </div>
@@ -125,9 +128,9 @@
 
         <a-card :bordered="false" :body-style="{ padding: '12px 16px' }">
           <template #title>
-            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">백링크</span>
+            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">참조하는 페이지</span>
           </template>
-          <div v-if="backlinks.length === 0" class="text-gray-400 text-xs py-2">이 페이지를 가리키는 페이지가 없습니다</div>
+          <div v-if="backlinks.length === 0" class="text-gray-400 text-xs py-2">이 페이지를 가리키는 페이지가 아직 없어요</div>
           <button
             v-for="bl in backlinks"
             :key="bl.id"
@@ -141,11 +144,11 @@
 
         <a-card :bordered="false" :body-style="{ padding: '12px 16px' }">
           <template #title>
-            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">출처 게시글</span>
+            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">이 페이지의 출처 자료</span>
           </template>
-          <div v-if="sources.length === 0" class="text-gray-400 text-xs py-2">출처 정보 없음</div>
+          <div v-if="sources.length === 0" class="text-gray-400 text-xs py-2">출처 정보가 없어요</div>
           <div v-for="src in sources" :key="src.post_id" class="mb-2 last:mb-0">
-            <router-link :to="`/ingest/${src.post_id}`" class="block p-2 hover:bg-gray-50 rounded transition">
+            <router-link :to="`/uploads/${src.post_id}`" class="block p-2 hover:bg-gray-50 rounded transition">
               <div class="flex items-center gap-2 mb-1">
                 <a-tag :color="src.relation === 'created' ? 'green' : 'blue'" class="!m-0 !text-[10px]">
                   {{ src.relation === 'created' ? '생성' : '수정' }}
@@ -244,6 +247,14 @@ const groupedPages = computed(() => {
 function catIcon(cat: string) {
   return ({ entities: ApartmentOutlined, concepts: BlockOutlined, comparisons: SwapOutlined } as any)[cat] || FolderOutlined
 }
+function catLabel(cat: string) {
+  return ({
+    entities: '인물·조직·제품',
+    concepts: '개념·이론',
+    comparisons: '비교',
+    misc: '기타',
+  } as Record<string, string>)[cat] || cat
+}
 
 async function loadTree() {
   treeLoading.value = true
@@ -308,11 +319,11 @@ function onSearchSelect(path: string) {
 function suggestCorrection() {
   if (!currentPage.value) return
   router.push({
-    path: '/ingest/new',
+    path: '/upload',
     query: {
       type: 'correction',
       target_wiki_path: currentPage.value.path,
-      title: `수정 제안: ${currentPage.value.title}`,
+      title: `보강: ${currentPage.value.title}`,
     },
   })
 }
@@ -332,10 +343,16 @@ watch(() => route.query.title as string, (title) => {
 
 onMounted(async () => {
   await loadTree()
+  if (route.query.view === 'graph') {
+    viewMode.value = 'graph'
+  }
   if (route.query.path) {
     await openPage(route.query.path as string)
   } else if (route.query.title) {
     await openByTitle(route.query.title as string)
+  } else if (route.query.q) {
+    searchQuery.value = route.query.q as string
+    onSearchInput()
   }
 })
 </script>

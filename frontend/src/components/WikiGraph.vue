@@ -24,11 +24,11 @@
 
     <!-- 범례 -->
     <div v-if="!loading && nodeCount" class="absolute top-3 right-3 bg-white/95 backdrop-blur rounded-lg px-3 py-2 text-xs shadow border space-y-1" style="border-color: var(--color-border);">
-      <div class="text-gray-500 font-medium mb-1">카테고리</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#4f46e5;"></span><span>entities</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#7c3aed;"></span><span>concepts</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#db2777;"></span><span>comparisons</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#9ca3af;"></span><span>misc</span></div>
+      <div class="text-gray-500 font-medium mb-1">주제별 색상</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#4f46e5;"></span><span>인물·조직·제품</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#7c3aed;"></span><span>개념·이론</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#db2777;"></span><span>비교</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#9ca3af;"></span><span>기타</span></div>
     </div>
 
     <!-- 액션 -->
@@ -51,6 +51,7 @@ import { DataSet } from 'vis-data/peer'
 import { NodeIndexOutlined, ExpandOutlined, SyncOutlined } from '@ant-design/icons-vue'
 import { wikiApi } from '@/api/wiki'
 
+const emit = defineEmits<{ (e: 'open-page', path: string): void }>()
 const container = ref<HTMLElement>()
 const loading = ref(false)
 const nodeCount = ref(0)
@@ -128,7 +129,10 @@ async function reload() {
         if (params.nodes && params.nodes.length) {
           const id = params.nodes[0]
           const path = pathById.get(id)
-          if (path) router.push({ path: '/wiki', query: { path } })
+          if (path) {
+            emit('open-page', path)
+            router.push({ path: '/library', query: { path } })
+          }
         }
       })
     }

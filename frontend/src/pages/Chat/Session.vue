@@ -34,16 +34,15 @@
 
       <!-- 채팅 메인 -->
       <div class="flex-1 flex flex-col bg-white rounded-xl border overflow-hidden" style="border-color: var(--color-border);">
-        <!-- 빈 상태 (세션 선택 안함) -->
         <div v-if="!currentSessionId" class="flex-1 flex items-center justify-center">
           <div class="text-center max-w-md px-6">
             <div class="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 items-center justify-center mb-4 shadow-lg">
               <MessageOutlined class="text-2xl text-white" />
             </div>
-            <h3 class="text-xl font-bold mb-2">위키와 대화해보세요</h3>
+            <h3 class="text-xl font-bold mb-2">무엇이 궁금하세요?</h3>
             <p class="text-gray-500 text-sm mb-6">
-              질문하면 위키 내용을 인용해 답변합니다.<br />
-              대화 내용은 새 게시글로 정리할 수도 있어요.
+              지식베이스에 쌓인 내용을 바탕으로 답변해 드려요.<br />
+              유익한 답변은 자료로 저장해서 지식을 키울 수 있어요.
             </p>
             <a-button type="primary" size="large" @click="newSession">
               <PlusOutlined /> 새 대화 시작
@@ -59,9 +58,9 @@
               <div class="text-xs text-gray-400">{{ messages.length }}개 메시지</div>
             </div>
             <div class="flex items-center gap-2">
-              <a-tooltip title="이 대화를 위키 게시글로 정리">
+              <a-tooltip title="이 대화의 유익한 내용을 새 자료로 저장">
                 <a-button @click="toIngest" :disabled="messages.length === 0">
-                  <FileTextOutlined /> 정리하기
+                  <FileTextOutlined /> 자료로 저장
                 </a-button>
               </a-tooltip>
             </div>
@@ -73,8 +72,8 @@
             <div v-if="messages.length === 0 && !streaming" class="flex flex-col items-center justify-center h-full">
               <div class="text-center max-w-lg">
                 <RobotOutlined class="text-4xl text-gray-300 mb-3" />
-                <h4 class="text-base font-semibold text-gray-700 mb-2">무엇이든 물어보세요</h4>
-                <p class="text-sm text-gray-400 mb-6">위키 내용을 기반으로 답변합니다</p>
+                <h4 class="text-base font-semibold text-gray-700 mb-2">무엇이든 자연어로 물어보세요</h4>
+                <p class="text-sm text-gray-400 mb-6">지식베이스의 내용을 인용해서 답변해 드려요</p>
                 <div class="grid grid-cols-1 gap-2">
                   <button
                     v-for="(s, i) in suggestions"
@@ -221,9 +220,9 @@ const streamingContent = ref('')
 const messagesContainer = ref<HTMLElement>()
 
 const suggestions = [
-  '위키에 어떤 페이지들이 있는지 알려줘',
-  '최근에 추가된 개념들을 요약해줘',
-  '서로 모순되는 내용이 있는지 검토해줘',
+  '지금까지 등록된 주요 주제는 어떤 것들이 있어?',
+  '최근에 추가된 내용을 요약해줘',
+  '서로 어긋나는 내용은 없는지 확인해줘',
 ]
 
 const currentSession = computed(() => sessions.value.find(s => s.id === currentSessionId.value))
@@ -345,10 +344,10 @@ async function toIngest() {
   if (!currentSessionId.value) return
   try {
     const res = await chatApi.toIngest(currentSessionId.value)
-    message.success('Ingest 게시글이 생성되었습니다 (미검증 표시)')
-    router.push(`/ingest/${res.data.post_id}`)
+    message.success('대화 내용을 새 자료로 저장했어요. 검토 후 처리됩니다.')
+    router.push(`/uploads/${res.data.post_id}`)
   } catch {
-    message.error('변환 실패')
+    message.error('저장 실패')
   }
 }
 

@@ -8,8 +8,8 @@
     <div v-else>
       <div class="flex justify-between items-start mb-6">
         <div>
-          <h2 class="text-2xl font-bold tracking-tight">Schema 관리</h2>
-          <p class="text-gray-500 text-sm mt-1">위키 구조·작성 규칙·LLM 프롬프트를 관리합니다</p>
+          <h2 class="text-2xl font-bold tracking-tight">작성 규칙</h2>
+          <p class="text-gray-500 text-sm mt-1">AI가 자료를 정리할 때 따라야 할 규칙을 정의합니다 (관리자 전용)</p>
         </div>
         <div class="flex gap-2">
           <a-button @click="resetUnsaved" :disabled="!isDirty">
@@ -21,15 +21,23 @@
         </div>
       </div>
 
+      <a-alert
+        type="info"
+        show-icon
+        class="mb-4"
+        message="이 페이지는 무엇인가요?"
+        description="AI가 자료를 정리할 때 참고하는 규칙서입니다. 페이지 종류, 명명 규칙, 출처 표기 방식, AI에게 주는 지시문 등을 적습니다. 변경하면 다음 정리 작업부터 자동 반영됩니다."
+      />
+
       <a-row :gutter="16">
         <a-col :span="16">
           <a-card :bordered="false" class="mb-4">
             <template #title>
-              현재 Schema
+              현재 규칙
               <span v-if="currentVersion" class="text-xs text-gray-400 font-normal ml-2">
                 v{{ currentVersion.id }} · {{ dayjs(currentVersion.updated_at).fromNow() }}
               </span>
-              <a-tag v-if="isDirty" color="orange" class="ml-2 !m-0 !text-[10px]">변경됨</a-tag>
+              <a-tag v-if="isDirty" color="orange" class="ml-2 !m-0 !text-[10px]">수정됨</a-tag>
             </template>
             <template #extra>
               <a-radio-group v-model:value="editMode" size="small" button-style="solid">
@@ -43,7 +51,18 @@
               v-model:value="content"
               :rows="20"
               class="!font-mono !text-sm"
-              placeholder="Schema 내용을 Markdown으로 작성하세요..."
+              placeholder="규칙을 자유롭게 작성하세요. 예시:
+
+# 페이지 종류
+- entities: 인물, 조직, 제품
+- concepts: 추상 개념, 이론
+- comparisons: 두 항목 비교
+
+# 작성 규칙
+- 모든 페이지는 H1 제목으로 시작
+- 출처는 페이지 하단 ## 출처 섹션에 기재
+- 다른 페이지 참조는 [[페이지명]] 형식 사용
+"
               style="resize: vertical;"
             />
             <div

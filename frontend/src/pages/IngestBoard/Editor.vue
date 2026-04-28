@@ -1,13 +1,13 @@
 <template>
   <AppLayout>
     <div class="max-w-5xl mx-auto">
-      <!-- 헤더 -->
       <div class="flex justify-between items-center mb-4">
         <div>
           <a-button type="text" size="small" @click="$router.back()" class="-ml-2">
-            <LeftOutlined /> 목록
+            <LeftOutlined /> 뒤로
           </a-button>
-          <h2 class="text-2xl font-bold tracking-tight mt-1">새 Ingest 게시글</h2>
+          <h2 class="text-2xl font-bold tracking-tight mt-1">자료 올리기</h2>
+          <p class="text-gray-500 text-sm mt-1">올린 자료를 AI가 분석해 지식베이스에 통합합니다</p>
         </div>
         <div class="flex items-center gap-2 text-xs text-gray-400">
           <span class="kbd">Ctrl</span><span>+</span><span class="kbd">Enter</span>
@@ -15,13 +15,22 @@
         </div>
       </div>
 
+      <!-- 안내 배너 -->
+      <a-alert
+        type="info"
+        show-icon
+        class="mb-4"
+        message="이렇게 쓰면 좋아요"
+        description="제목은 자료의 핵심을 한 줄로, 본문은 평소 메모하듯이 자유롭게. AI가 알아서 정리·분류해 지식베이스의 적절한 페이지에 통합합니다."
+      />
+
       <a-form layout="vertical" :model="form" @finish="handleSubmit" @keydown.ctrl.enter="handleSubmit">
         <a-card :bordered="false" class="mb-4">
           <a-form-item label="제목" name="title" :rules="[{ required: true, message: '제목을 입력하세요' }]">
             <a-input
               v-model:value="form.title"
               size="large"
-              placeholder="이 자료가 다루는 핵심 주제..."
+              placeholder="예: 트랜스포머 아키텍처 정리, 김연아 선수 프로필..."
               :maxlength="500"
               show-count
             />
@@ -29,37 +38,39 @@
 
           <a-row :gutter="16">
             <a-col :span="8">
-              <a-form-item label="타입" name="type">
+              <a-form-item label="자료 종류" name="type">
                 <a-select v-model:value="form.type" size="large">
                   <a-select-option value="new">
                     <span class="inline-flex items-center gap-2">
-                      <span class="w-2 h-2 rounded-full bg-blue-500"></span> 신규 자료
+                      <span class="w-2 h-2 rounded-full bg-blue-500"></span> 새 자료
                     </span>
                   </a-select-option>
                   <a-select-option value="correction">
                     <span class="inline-flex items-center gap-2">
-                      <span class="w-2 h-2 rounded-full bg-orange-500"></span> 수정 제안
+                      <span class="w-2 h-2 rounded-full bg-orange-500"></span> 기존 페이지 수정 제안
                     </span>
                   </a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
             <a-col :span="8">
-              <a-form-item label="우선순위" name="priority">
+              <a-form-item label="처리 속도" name="priority">
                 <a-select v-model:value="form.priority" size="large">
-                  <a-select-option value="normal">일반</a-select-option>
+                  <a-select-option value="normal">
+                    <span>일반 — 자동 일괄 처리</span>
+                  </a-select-option>
                   <a-select-option value="urgent">
-                    <span class="text-red-600 font-medium">⚡ 긴급 (즉시 처리)</span>
+                    <span class="text-red-600 font-medium">⚡ 빨리 — 저장 즉시 시작</span>
                   </a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
             <a-col :span="8">
-              <a-form-item label="카테고리" name="category">
+              <a-form-item label="주제 (선택)" name="category">
                 <a-auto-complete
                   v-model:value="form.category"
                   size="large"
-                  placeholder="entities, concepts, ..."
+                  placeholder="예: 인물, 개념..."
                   :options="categoryOptions"
                 />
               </a-form-item>
@@ -67,17 +78,16 @@
           </a-row>
         </a-card>
 
-        <!-- 본문 — 탭 (작성/미리보기) -->
         <a-card :bordered="false" class="mb-4">
           <template #title>
             <span>본문</span>
-            <span class="text-xs text-gray-400 ml-2 font-normal">Markdown 지원 · [[페이지명]]으로 위키링크</span>
+            <span class="text-xs text-gray-400 ml-2 font-normal">자유롭게 작성하세요 · 다른 페이지를 가리키려면 [[페이지명]]</span>
           </template>
           <template #extra>
             <a-radio-group v-model:value="editMode" size="small" button-style="solid">
               <a-radio-button value="edit"><EditOutlined /> 작성</a-radio-button>
               <a-radio-button value="preview"><EyeOutlined /> 미리보기</a-radio-button>
-              <a-radio-button value="split"><LayoutOutlined /> 분할</a-radio-button>
+              <a-radio-button value="split"><LayoutOutlined /> 나란히</a-radio-button>
             </a-radio-group>
           </template>
 
@@ -86,17 +96,17 @@
               v-show="editMode === 'edit' || editMode === 'split'"
               v-model:value="form.body_md"
               :rows="18"
-              placeholder="자료의 내용을 Markdown으로 작성하세요...
+              placeholder="여기에 자료를 작성하거나 붙여넣으세요.
 
-# 제목
+예: 회의록, 메모, 기사 본문, 위키 인용 등 무엇이든 OK.
 
-본문에서 `[[다른 페이지]]`로 다른 위키 페이지를 참조할 수 있습니다.
+# 큰 제목
+## 작은 제목
 
-```python
-# 코드 블록도 지원
-def hello():
-    pass
-```"
+- 목록 항목
+- **굵게** 또는 *기울임*
+
+다른 페이지를 가리키려면 [[페이지명]]"
               class="!font-mono !text-sm"
               style="resize: vertical;"
             />
@@ -107,17 +117,16 @@ def hello():
             >
               <div v-if="!form.body_md" class="text-gray-300 text-center py-12 text-sm">
                 <FileTextOutlined class="text-4xl mb-2 block" />
-                미리보기가 여기 표시됩니다
+                작성하면 여기에 결과 모양이 보입니다
               </div>
               <MarkdownRender v-else :content="form.body_md" />
             </div>
           </div>
         </a-card>
 
-        <!-- 첨부 -->
-        <a-card :bordered="false" class="mb-4" title="첨부 파일">
+        <a-card :bordered="false" class="mb-4" title="이미지/파일 첨부">
           <template #extra>
-            <span class="text-xs text-gray-400">이미지/PDF/텍스트 (파일당 50MB)</span>
+            <span class="text-xs text-gray-400">스크린샷·PDF·텍스트 (파일당 50MB)</span>
           </template>
           <a-upload-dragger
             v-model:file-list="fileList"
@@ -126,28 +135,27 @@ def hello():
             multiple
           >
             <p class="text-3xl text-gray-300 mb-2"><InboxOutlined /></p>
-            <p class="text-sm font-medium">클릭하거나 파일을 드래그해서 업로드</p>
-            <p class="text-xs text-gray-400 mt-1">png, jpg, gif, webp, pdf, txt, md</p>
+            <p class="text-sm font-medium">클릭하거나 파일을 끌어다 놓으세요</p>
+            <p class="text-xs text-gray-400 mt-1">이미지(png/jpg/gif/webp), 문서(pdf/txt/md)</p>
           </a-upload-dragger>
         </a-card>
 
-        <!-- 출처 정보 -->
         <a-card :bordered="false" class="mb-4">
           <template #title>
-            <span>출처 정보</span>
-            <span class="text-xs text-gray-400 ml-2 font-normal">선택 — 위키에 자동 인용됩니다</span>
+            <span>출처</span>
+            <span class="text-xs text-gray-400 ml-2 font-normal">선택 — 자료의 신뢰성을 높여줍니다</span>
           </template>
           <a-row :gutter="16">
             <a-col :span="12">
-              <a-form-item label="출처 URL">
+              <a-form-item label="출처 링크">
                 <a-input v-model:value="form.source_url" placeholder="https://...">
                   <template #prefix><LinkOutlined class="text-gray-400" /></template>
                 </a-input>
               </a-form-item>
             </a-col>
             <a-col :span="12">
-              <a-form-item label="출처 저자">
-                <a-input v-model:value="form.source_author" placeholder="저자/매체명">
+              <a-form-item label="저자/출처명">
+                <a-input v-model:value="form.source_author" placeholder="저자, 매체, 사이트명">
                   <template #prefix><UserOutlined class="text-gray-400" /></template>
                 </a-input>
               </a-form-item>
@@ -155,16 +163,15 @@ def hello():
           </a-row>
         </a-card>
 
-        <!-- 액션 바 -->
         <div class="sticky bottom-0 bg-white border-t mt-4 px-4 py-3 -mx-6 flex justify-between items-center" style="border-color: var(--color-border); margin-bottom: -24px;">
           <div class="text-xs text-gray-500">
-            <span v-if="form.body_md.length > 0">{{ form.body_md.length.toLocaleString() }}자</span>
+            <span v-if="form.body_md.length > 0">{{ form.body_md.length.toLocaleString() }}자 작성됨</span>
             <span v-else>—</span>
           </div>
           <div class="flex gap-3">
             <a-button @click="$router.back()" size="large">취소</a-button>
             <a-button type="primary" html-type="submit" :loading="submitting" size="large">
-              <SaveOutlined /> 저장
+              <SaveOutlined /> {{ form.priority === 'urgent' ? '저장하고 바로 시작' : '저장' }}
             </a-button>
           </div>
         </div>
@@ -202,9 +209,9 @@ const form = reactive({
 })
 
 const categoryOptions = computed(() => [
-  { value: 'entities' },
-  { value: 'concepts' },
-  { value: 'comparisons' },
+  { value: 'entities', label: 'entities (인물·조직·제품)' },
+  { value: 'concepts', label: 'concepts (개념·이론)' },
+  { value: 'comparisons', label: 'comparisons (비교)' },
 ])
 
 onMounted(() => {
@@ -247,14 +254,13 @@ async function handleSubmit() {
       }
     }
 
-    message.success('게시글이 등록되었습니다')
+    message.success('자료가 등록되었습니다')
 
-    // urgent면 자동 실행
     if (form.priority === 'urgent') {
       try { await ingestApi.run(postId) } catch {}
     }
 
-    router.push(`/ingest/${postId}`)
+    router.push(`/uploads/${postId}`)
   } catch (e: any) {
     message.error(e?.response?.data?.detail || '저장 실패')
   } finally {

@@ -5,14 +5,26 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', name: 'Login', component: () => import('@/pages/Login.vue'), meta: { public: true } },
-    { path: '/', redirect: '/ingest' },
-    { path: '/ingest', name: 'IngestList', component: () => import('@/pages/IngestBoard/List.vue') },
-    { path: '/ingest/new', name: 'IngestNew', component: () => import('@/pages/IngestBoard/Editor.vue') },
-    { path: '/ingest/:id', name: 'IngestDetail', component: () => import('@/pages/IngestBoard/Detail.vue') },
-    { path: '/wiki', name: 'WikiBrowse', component: () => import('@/pages/WikiBrowse/Index.vue') },
-    { path: '/chat', name: 'Chat', component: () => import('@/pages/Chat/Session.vue') },
-    { path: '/lint', name: 'LintDashboard', component: () => import('@/pages/LintDashboard/Index.vue') },
-    { path: '/schema', name: 'SchemaAdmin', component: () => import('@/pages/SchemaAdmin/Index.vue') },
+    { path: '/', redirect: '/home' },
+
+    // 새 사용자 친화 경로
+    { path: '/home', name: 'Home', component: () => import('@/pages/Home/Index.vue') },
+    { path: '/library', name: 'Library', component: () => import('@/pages/WikiBrowse/Index.vue') },
+    { path: '/ask', name: 'Ask', component: () => import('@/pages/Chat/Session.vue') },
+    { path: '/uploads', name: 'Uploads', component: () => import('@/pages/IngestBoard/List.vue') },
+    { path: '/upload', name: 'UploadNew', component: () => import('@/pages/IngestBoard/Editor.vue') },
+    { path: '/uploads/:id', name: 'UploadDetail', component: () => import('@/pages/IngestBoard/Detail.vue') },
+    { path: '/quality', name: 'Quality', component: () => import('@/pages/LintDashboard/Index.vue') },
+    { path: '/rules', name: 'Rules', component: () => import('@/pages/SchemaAdmin/Index.vue') },
+
+    // 구 경로 호환 (북마크 깨짐 방지) — 모두 새 경로로 redirect
+    { path: '/ingest', redirect: '/uploads' },
+    { path: '/ingest/new', redirect: '/upload' },
+    { path: '/ingest/:id', redirect: (to: any) => `/uploads/${to.params.id}` },
+    { path: '/wiki', redirect: (to: any) => ({ path: '/library', query: to.query }) },
+    { path: '/chat', redirect: '/ask' },
+    { path: '/lint', redirect: '/quality' },
+    { path: '/schema', redirect: '/rules' },
   ],
 })
 
